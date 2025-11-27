@@ -7,7 +7,11 @@
     "build": "bun build --target=node --outfile dist/main.js ./src/index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@actions/github": "^6.0.1",
+    "@actions/io": "^2.0.0",
+    "@types/bun": "latest",
+    "tar": "^7.5.2",
+    "zod": "^4.1.13"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -15,6 +19,8 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/http-client": "^3.0.0",
-    "install": "^0.13.0"
+    "@aws-sdk/client-s3": "^3.940.0",
+    "install": "^0.13.0",
+    "@rcade/api": "workspace:*"
   }
 }

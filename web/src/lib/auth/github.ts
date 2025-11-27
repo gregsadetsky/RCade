@@ -6,6 +6,7 @@ import { env } from "$env/dynamic/private"
 
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const GITHUB_OIDC_JWKS_URI = `${GITHUB_OIDC_ISSUER}/.well-known/jwks`;
+const ACTION_AUDIENCE = "https://rcade.recurse.com";
 
 const GithubOIDCClaims = z.object({
     iss: z.string().nonempty(),
@@ -52,9 +53,10 @@ export class GithubOIDCValidator {
             payload = JSON.parse(atob(jwt.split(".")[1]));
         } else {
             const res = await jose.jwtVerify(jwt, this.jwks, {
-                issuer: GITHUB_OIDC_ISSUER,
-                // TODO more validation?
-            });
+							issuer: GITHUB_OIDC_ISSUER,
+							audience: ACTION_AUDIENCE,
+							// TODO more validation?
+						});
 
             payload = res.payload;
         }

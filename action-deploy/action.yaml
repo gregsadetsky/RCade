@@ -5,3 +5,12 @@ runs:
     using: 'node20'
     main: 'dist/main.js'
 
+inputs:
+  manifestPath:
+    description: Path to the manifest file
+    required: true
+    default: './rcade.manifest.json'
+  artifactPath:
+    description: Path to the built artifact folder to deploy
+    required: true
+    default: './dist/'

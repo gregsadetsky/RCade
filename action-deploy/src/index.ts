@@ -1,22 +1,70 @@
-import * as core from '@actions/core'
-import { wait } from './wait'
+import * as core from "@actions/core";
+import { Manifest } from "@rcade/api";
+import * as fs from "fs";
+import * as tar from "tar";
+import { resolve, basename, dirname, join } from 'path';
+
+const TOKEN_AUDIENCE = "https://rcade.recurse.com";
+
+async function getIdToken(): Promise<string> {
+  try {
+    // This uses the built-in GitHub Actions function to get OIDC token
+    const idToken = await core.getIDToken(TOKEN_AUDIENCE);
+    return idToken;
+  } catch (error) {
+    throw new Error(`Failed to get ID token: ${error}`);
+  }
+}
 
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
+    core.info("Aquiring id token");
+    const idToken = await getIdToken();
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Waiting ${ms} milliseconds ...`)
+    const manifestPath = core.getInput("manifestPath", { required: true });
+    core.info(`Checking for manifest file at ${manifestPath}...`);
+    const rawManifest = fs.readFileSync(manifestPath, "utf-8");
+    const manifest = Manifest.parse(JSON.parse(rawManifest));
 
-    // Log the current timestamp, wait, then log the new timestamp
-    core.debug(new Date().toTimeString())
-    await wait(parseInt(ms, 10))
-    core.debug(new Date().toTimeString())
+    core.info(`Found manifest for app ${manifest.name}`);
+    core.startGroup("📦 Manifest");
+    core.info(JSON.stringify(manifest, null, 2));
+    core.endGroup();
 
-    // Set outputs for other workflow steps to use
-    core.setOutput('time', new Date().toTimeString())
+    const artifactPath = core.getInput("artifactPath", { required: true });
+    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+    const absoluteArtifactPath = resolve(workspace, artifactPath);
+
+    // ensure artfact folder has an index.html
+    if (!fs.existsSync(`${absoluteArtifactPath}/index.html`)) {
+      throw new Error(
+        `Artifact folder ${artifactPath} does not contain an index.html file`
+      );
+    }
+
+    const outputFile = `${basename(artifactPath)}.tar.gz`;
+    const outputPath = join(workspace, outputFile);
+
+    core.startGroup("📦 Creating tar.gz archive");
+    core.info(`Source: ${absoluteArtifactPath}`);
+    core.info(`Output: ${outputPath}`);
+
+    // Create tar.gz
+    await tar.create(
+      {
+        gzip: true,
+        file: outputPath,
+        cwd: dirname(absoluteArtifactPath),
+      },
+      [basename(absoluteArtifactPath)]
+    );
+
+    core.info(`✅ Created: ${outputFile}`);
+    core.endGroup();
+
+
   } catch (error) {
     // Fail the workflow run if an error occurs
-    if (error instanceof Error) core.setFailed(error.message)
+    if (error instanceof Error) core.setFailed(error.message);
   }
 }

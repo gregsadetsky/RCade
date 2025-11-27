@@ -22,3 +22,5 @@ export const Manifest = z.object({
     version: ZodSemverUnbranded.optional(),
     authors: z.union([ManifestAuthor, z.array(ManifestAuthor).min(1)])
 })
+
+export type Manifest = z.infer<typeof Manifest>;
