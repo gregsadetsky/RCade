@@ -28637,7 +28637,8 @@ var mtimeFilter = (opt) => {
   opt.filter = filter ? (path8, stat) => filter(path8, stat) && !((opt.mtimeCache?.get(path8) ?? stat.mtime ?? 0) > (stat.mtime ?? 0)) : (path8, stat) => !((opt.mtimeCache?.get(path8) ?? stat.mtime ?? 0) > (stat.mtime ?? 0));
 };
 // src/index.ts
-import { resolve, basename as basename2, dirname as dirname2, join as join2 } from "path";
+import { stat as stat2 } from "fs/promises";
+import { resolve, basename as basename2, join as join2 } from "path";
 
 // src/api-client.ts
 var core2 = __toESM(require_core(), 1);
@@ -28723,11 +28724,15 @@ async function run() {
     core3.startGroup("\uD83D\uDCE6 Creating tar.gz archive");
     core3.info(`Source: ${absoluteArtifactPath}`);
     core3.info(`Output: ${outputPath}`);
+    const stats = await stat2(absoluteArtifactPath);
+    if (!stats.isDirectory()) {
+      throw new Error(`Artifact path ${artifactPath} is not a directory`);
+    }
     await create({
       gzip: true,
       file: outputPath,
-      cwd: dirname2(absoluteArtifactPath)
-    }, [basename2(absoluteArtifactPath)]);
+      cwd: absoluteArtifactPath
+    }, ["."]);
     core3.info(`✅ Created: ${outputFile}`);
     core3.endGroup();
     core3.startGroup("\uD83D\uDD25 Creating Deployment Intent");

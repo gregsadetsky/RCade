@@ -2,7 +2,8 @@ import * as core from "@actions/core";
 import { Manifest } from "@rcade/api";
 import * as fs from "fs";
 import * as tar from "tar";
-import { resolve, basename, dirname, join } from 'path';
+import { stat } from "fs/promises";
+import { resolve, basename, dirname, join } from "path";
 import { RCadeDeployClient } from "./api-client";
 import { uploadFileStream } from "./bucket";
 
@@ -51,14 +52,19 @@ export async function run(): Promise<void> {
     core.info(`Source: ${absoluteArtifactPath}`);
     core.info(`Output: ${outputPath}`);
 
+    const stats = await stat(absoluteArtifactPath);
+    if (!stats.isDirectory()) {
+      throw new Error(`Artifact path ${artifactPath} is not a directory`);
+    }
+
     // Create tar.gz
     await tar.create(
       {
         gzip: true,
         file: outputPath,
-        cwd: dirname(absoluteArtifactPath),
+        cwd: absoluteArtifactPath,
       },
-      [basename(absoluteArtifactPath)]
+      ["."]
     );
 
     core.info(`✅ Created: ${outputFile}`);
@@ -74,7 +80,6 @@ export async function run(): Promise<void> {
     await uploadFileStream(outputPath, intent.upload_url);
     core.info(`✅ Uploaded artifact`);
     core.endGroup();
-
 
     core.startGroup(`✨ Deployment complete! ✨`);
     core.info("Your game is now available on the RCade!");
