@@ -22,7 +22,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build index.ts --outdir dist --target node"
+    "build": "bun build index.ts --outdir dist --target node --banner '#!/usr/bin/env node'"
   },
   "type": "module",
   "dependencies": {
