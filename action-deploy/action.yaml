@@ -1,0 +1,7 @@
+name: Deploy to RCade
+description: This action deploys your app to RCade
+
+runs:
+    using: 'node20'
+    main: 'dist/index.js'
+
