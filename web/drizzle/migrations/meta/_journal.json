@@ -57,6 +57,13 @@
       "when": 1764221141524,
       "tag": "0007_goofy_the_fallen",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1764221582646,
+      "tag": "0008_silent_shockwave",
+      "breakpoints": true
     }
   ]
 }

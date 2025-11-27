@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { integer, numeric, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { integer, numeric, sqliteTable, text, unique, foreignKey } from 'drizzle-orm/sqlite-core';
 
 export const games = sqliteTable('games', {
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -7,13 +7,6 @@ export const games = sqliteTable('games', {
     github_author: text("github_author").notNull(),
     github_repo: text("github_repo").notNull(),
     owner_rc_id: numeric("owner_rc_id").notNull(),
-});
-
-export const gameAuthors = sqliteTable('game_authors', {
-    gameId: text("game_id").notNull().references(() => games.id, { onDelete: "cascade" }),
-    gameVersion: text("game_version").notNull().references(() => gameVersions.version, { onDelete: "cascade" }),
-    recurse_id: integer("recurse_id"),
-    display_name: text("display_name").notNull(),
 });
 
 export const gameVersions = sqliteTable('game_versions', {
@@ -25,6 +18,18 @@ export const gameVersions = sqliteTable('game_versions', {
 }, (t) => [
     unique().on(t.gameId, t.version),
 ])
+
+export const gameAuthors = sqliteTable('game_authors', {
+    gameId: text("game_id").notNull(),
+    gameVersion: text("game_version").notNull(),
+    recurse_id: integer("recurse_id"),
+    display_name: text("display_name").notNull(),
+}, (t) => [
+    foreignKey({
+        columns: [t.gameId, t.gameVersion],
+        foreignColumns: [gameVersions.gameId, gameVersions.version],
+    }).onDelete("cascade"),
+]);
 
 export const gamesRelations = relations(games, ({ many }) => ({
     versions: many(gameVersions),
