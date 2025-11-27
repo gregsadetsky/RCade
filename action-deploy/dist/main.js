@@ -33962,20 +33962,25 @@ function date4(params) {
 
 // ../node_modules/.bun/zod@4.1.13/node_modules/zod/v4/classic/external.js
 config(en_default());
-// ../api/dist/src/manifest.js
+// ../api/dist/src/game/manifest.js
 var ManifestAuthor = object({
   display_name: string2(),
   recurse_id: number2().optional()
 });
 var regexSemverNumberedGroups = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 var ZodSemverUnbranded = string2().regex(regexSemverNumberedGroups);
+var ManifestDependency = object({
+  name: string2(),
+  version: ZodSemverUnbranded
+});
 var Manifest = object({
   name: string2().nonempty().regex(/[a-zA-Z0-9_-]*/),
   display_name: string2().optional(),
   description: string2(),
   visibility: _enum2(["public", "private", "personal"]),
   version: ZodSemverUnbranded.optional(),
-  authors: union([ManifestAuthor, array(ManifestAuthor).min(1)])
+  authors: union([ManifestAuthor, array(ManifestAuthor).min(1)]),
+  dependencies: array(ManifestDependency)
 });
 // ../api/dist/src/game/index.js
 var import_semver = __toESM(require_semver2(), 1);
@@ -39512,10 +39517,10 @@ class RCadeDeployClient {
   }
   async createDeploymentIntent(manifest) {
     const res = await this.httpClient.post(`${RECURSE_BASE_URL}/deployments/${manifest.name}`, JSON.stringify(manifest));
-    if (res.message.statusCode !== 200) {
-      throw new Error(`Failed to create deployment intent: ${res.message.statusCode} ${res.message.statusMessage}`);
-    }
     const body = await res.readBody();
+    if (res.message.statusCode !== 200) {
+      throw new Error(`Failed to create deployment intent: ${res.message.statusCode} ${res.message.statusMessage} - ${body}`);
+    }
     const deploymentIntent = DeploymentIntent.parse(JSON.parse(body));
     core2.setSecret(deploymentIntent.upload_url);
     return deploymentIntent;
