@@ -6,11 +6,18 @@ set -e
 SERVICE_NAME="rcade-cabinet"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-USER="${SUDO_USER:-$(whoami)}"
+CURRENT_USER="$(whoami)"
+
+# Find bun
+BUN_PATH=$(which bun 2>/dev/null || echo "$HOME/.bun/bin/bun")
+if [ ! -x "$BUN_PATH" ]; then
+    echo "Error: bun not found"
+    exit 1
+fi
 
 echo "Building rcade cabinet..."
 cd "$PROJECT_DIR"
-sudo -u "$USER" -i bash -c "cd '$PROJECT_DIR' && bun run build:linux"
+"$BUN_PATH" run build:linux
 
 # Find the AppImage
 APP_PATH=$(ls "$PROJECT_DIR"/release/rcade*.AppImage 2>/dev/null | head -1)
@@ -24,11 +31,11 @@ chmod +x "$APP_PATH"
 APP_PATH=$(realpath "$APP_PATH")
 
 echo "Installing $SERVICE_NAME service..."
-echo "  User: $USER"
+echo "  User: $CURRENT_USER"
 echo "  App: $APP_PATH"
 
-# Create systemd service file
-cat > /etc/systemd/system/${SERVICE_NAME}.service << EOF
+# Create systemd service file (requires sudo)
+sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null << EOF
 [Unit]
 Description=rcade Cabinet
 After=graphical.target
@@ -36,7 +43,7 @@ Wants=graphical.target
 
 [Service]
 Type=simple
-User=$USER
+User=$CURRENT_USER
 Environment=DISPLAY=:0
 ExecStart=$APP_PATH
 Restart=always
@@ -49,9 +56,9 @@ EOF
 echo "Created /etc/systemd/system/${SERVICE_NAME}.service"
 
 # Reload systemd and enable service
-systemctl daemon-reload
-systemctl enable ${SERVICE_NAME}.service
-systemctl start ${SERVICE_NAME}.service
+sudo systemctl daemon-reload
+sudo systemctl enable ${SERVICE_NAME}.service
+sudo systemctl start ${SERVICE_NAME}.service
 
 echo ""
 echo "Service installed and started!"
