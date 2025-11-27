@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import { Manifest } from "@rcade/api";
+import { GameManifest } from "@rcade/api";
 import * as fs from "fs";
 import * as tar from "tar";
 import { stat } from "fs/promises";
@@ -27,7 +27,7 @@ export async function run(): Promise<void> {
     const manifestPath = core.getInput("manifestPath", { required: true });
     core.info(`Checking for manifest file at ${manifestPath}...`);
     const rawManifest = fs.readFileSync(manifestPath, "utf-8");
-    const manifest = Manifest.parse(JSON.parse(rawManifest));
+    const manifest = GameManifest.parse(JSON.parse(rawManifest));
 
     core.startGroup("💡 Manifest");
     core.info(`Found manifest for app ${manifest.name}`);

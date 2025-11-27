@@ -15,6 +15,11 @@ export const ZodSemverUnbranded = z.string().regex(
     regexSemverNumberedGroups,
 )
 
+export const ManifestDependency = z.object({
+    name: z.string(),
+    version: ZodSemverUnbranded,
+})
+
 export const Manifest = z.object({
     name: z
         .string()
@@ -25,6 +30,7 @@ export const Manifest = z.object({
     visibility: z.enum(["public", "private", "personal"]),
     version: ZodSemverUnbranded.optional(),
     authors: z.union([ManifestAuthor, z.array(ManifestAuthor).min(1)]),
+    dependencies: z.array(ManifestDependency),
 });
 
 export type Manifest = z.infer<typeof Manifest>;

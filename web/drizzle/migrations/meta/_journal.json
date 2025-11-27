@@ -64,6 +64,13 @@
       "when": 1764221582646,
       "tag": "0008_silent_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1764235112708,
+      "tag": "0009_curved_mister_fear",
+      "breakpoints": true
     }
   ]
 }

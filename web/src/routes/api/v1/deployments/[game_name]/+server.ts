@@ -2,7 +2,7 @@ import { GithubOIDCValidator } from "$lib/auth/github";
 import { getDb } from "$lib/db";
 import { games } from "$lib/db/schema";
 import { Game } from "$lib/game";
-import { Manifest } from "@rcade/api";
+import { GameManifest } from "@rcade/api";
 import type { RequestHandler } from "@sveltejs/kit";
 import semver from "semver";
 
@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 
         const auth = await VALIDATOR.validate(token);
 
-        const manifest = Manifest.parse(await request.json());
+        const manifest = GameManifest.parse(await request.json());
         let game = await Game.byName(params.game_name ?? "");
         let version = undefined;
 

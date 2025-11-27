@@ -1,9 +1,9 @@
 import { eq, type InferSelectModel } from "drizzle-orm";
 import { getDb } from "./db";
-import { gameAuthors, games, gameVersions } from "./db/schema";
+import { gameAuthors, gameDependencies, games, gameVersions } from "./db/schema";
 import type { GithubOIDCClaims } from "./auth/github";
 import * as z from "zod";
-import { Manifest } from "@rcade/api";
+import { GameManifest } from "@rcade/api";
 import type { R2Bucket } from "@cloudflare/workers-types";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
@@ -27,12 +27,12 @@ const S3 = new S3Client({
 
 export class Game {
     public static async all(): Promise<Game[]> {
-        return (await getDb().query.games.findMany({ with: { versions: { with: { authors: true } } } }))
+        return (await getDb().query.games.findMany({ with: { versions: { with: { authors: true, dependencies: true } } } }))
             .map(game => new Game(game));
     }
 
     public static async byId(id: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true } } }, where: eq(games.id, id) });
+        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true } } }, where: eq(games.id, id) });
 
         if (v === undefined) {
             return undefined;
@@ -42,7 +42,7 @@ export class Game {
     }
 
     public static async byName(name: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true } } }, where: eq(games.name, name) });
+        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true } } }, where: eq(games.name, name) });
 
         if (v === undefined) {
             return undefined;
@@ -67,9 +67,14 @@ export class Game {
         });
     }
 
-    private constructor(private data: InferSelectModel<typeof games> & { versions: (InferSelectModel<typeof gameVersions> & { authors: InferSelectModel<typeof gameAuthors>[] })[] }) { }
+    private constructor(private data: InferSelectModel<typeof games> & {
+        versions: (InferSelectModel<typeof gameVersions> & {
+            authors: InferSelectModel<typeof gameAuthors>[],
+            dependencies: InferSelectModel<typeof gameDependencies>[],
+        })[]
+    }) { }
 
-    public async publishVersion(version: string, manifest: z.infer<typeof Manifest>): Promise<{ upload_url: string, expires: number }> {
+    public async publishVersion(version: string, manifest: z.infer<typeof GameManifest>): Promise<{ upload_url: string, expires: number }> {
         if (manifest.version !== undefined && manifest.version !== version) {
             throw new Error("Version mismatch");
         }
@@ -91,6 +96,14 @@ export class Game {
 
             display_name: author.display_name,
             recurse_id: author.recurse_id
+        })));
+
+        await getDb().insert(gameDependencies).values(manifest.dependencies.map(dependency => ({
+            gameId: this.data.id,
+            gameVersion: version,
+
+            dependencyName: dependency.name,
+            dependencyVersion: dependency.version,
         })));
 
         const upload_url = await getSignedUrl(
@@ -139,6 +152,7 @@ export class Game {
                 visibility: version.visibility,
                 version: version.version,
                 authors: version.authors.map(v => ({ display_name: v.display_name, recurse_id: v.recurse_id })),
+                dependencies: version.dependencies.map(v => ({ name: v.dependencyName, version: v.dependencyVersion })),
                 ...r2Key,
             }
         }));

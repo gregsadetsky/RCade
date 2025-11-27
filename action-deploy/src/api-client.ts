@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import * as z from "zod";
-import { Manifest } from "@rcade/api";
+import { GameManifest } from "@rcade/api";
 import { HttpClient } from "@actions/http-client";
 import { BearerCredentialHandler } from "@actions/http-client/lib/auth";
 
@@ -22,7 +22,7 @@ export class RCadeDeployClient {
     this.httpClient = new HttpClient("rcade-deploy", [auth]);
   }
 
-  async createDeploymentIntent(manifest: Manifest): Promise<DeploymentIntent> {
+  async createDeploymentIntent(manifest: GameManifest): Promise<DeploymentIntent> {
     const res = await this.httpClient.post(
       `${RECURSE_BASE_URL}/deployments/${manifest.name}`,
       JSON.stringify(manifest)

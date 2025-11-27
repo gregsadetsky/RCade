@@ -78,6 +78,9 @@ export async function main() {
         visibility,
         ...(versioning === "automatic" ? {} : { version: "1.0.0" }),
         authors: { display_name: "Temp" },
+        dependencies: [
+            { name: "@rcade/input-classic", version: "1.0.0" },
+        ]
     };
 
     const templatePath = path.join(__dirname, `../templates/${templateDirectory}`);
