@@ -23155,7 +23155,7 @@ var Manifest = object({
   authors: union([ManifestAuthor, array(ManifestAuthor).min(1)])
 });
 // src/index.ts
-import * as fs11 from "fs";
+import * as fs12 from "fs";
 
 // ../node_modules/.bun/@isaacs+fs-minipass@4.0.1/node_modules/@isaacs/fs-minipass/dist/esm/index.js
 import EE from "events";
@@ -28669,6 +28669,27 @@ class RCadeDeployClient {
   }
 }
 
+// src/bucket.ts
+var httpm = __toESM(require_lib2(), 1);
+import fs11 from "fs";
+import { stat } from "fs/promises";
+async function uploadFileStream(filePath, presignedUrl) {
+  const client = new httpm.HttpClient("rcade-deploy-bucket-client", [], {
+    allowRetries: true,
+    maxRetries: 3
+  });
+  const stats = await stat(filePath);
+  const fileStream = fs11.createReadStream(filePath);
+  const response = await client.sendStream("PUT", presignedUrl, fileStream, {
+    "Content-Type": "application/octet-stream",
+    "Content-Length": stats.size.toString()
+  });
+  if (response.message.statusCode !== 200) {
+    const body = await response.readBody();
+    throw new Error(`Upload failed: ${response.message.statusCode} - ${body}`);
+  }
+}
+
 // src/index.ts
 var TOKEN_AUDIENCE = "https://rcade.recurse.com";
 async function getIdToken() {
@@ -28685,7 +28706,7 @@ async function run() {
     const idToken = await getIdToken();
     const manifestPath = core3.getInput("manifestPath", { required: true });
     core3.info(`Checking for manifest file at ${manifestPath}...`);
-    const rawManifest = fs11.readFileSync(manifestPath, "utf-8");
+    const rawManifest = fs12.readFileSync(manifestPath, "utf-8");
     const manifest = Manifest.parse(JSON.parse(rawManifest));
     core3.startGroup("\uD83D\uDCA1 Manifest");
     core3.info(`Found manifest for app ${manifest.name}`);
@@ -28694,7 +28715,7 @@ async function run() {
     const artifactPath = core3.getInput("artifactPath", { required: true });
     const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const absoluteArtifactPath = resolve(workspace, artifactPath);
-    if (!fs11.existsSync(`${absoluteArtifactPath}/index.html`)) {
+    if (!fs12.existsSync(`${absoluteArtifactPath}/index.html`)) {
       throw new Error(`Artifact folder ${artifactPath} does not contain an index.html file`);
     }
     const outputFile = `${basename2(artifactPath)}.tar.gz`;
@@ -28726,9 +28747,6 @@ async function run() {
   }
 }
 run();
-function uploadFileStream(outputPath, upload_url) {
-  throw new Error("Function not implemented.");
-}
 export {
   run
 };

@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as tar from "tar";
 import { resolve, basename, dirname, join } from 'path';
 import { RCadeDeployClient } from "./api-client";
+import { uploadFileStream } from "./bucket";
 
 const TOKEN_AUDIENCE = "https://rcade.recurse.com";
 
@@ -84,7 +85,3 @@ export async function run(): Promise<void> {
 }
 
 run();
-
-function uploadFileStream(outputPath: string, upload_url: string) {
-  throw new Error("Function not implemented.");
-}

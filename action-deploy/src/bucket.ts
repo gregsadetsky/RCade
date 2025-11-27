@@ -2,7 +2,7 @@ import * as httpm from "@actions/http-client";
 import fs from "fs";
 import { stat } from "fs/promises";
 
-async function uploadFileStream(
+export async function uploadFileStream(
   filePath: string,
   presignedUrl: string
 ): Promise<void> {
