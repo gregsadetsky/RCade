@@ -27860,6 +27860,7 @@ async function run() {
       core2.setFailed(error.message);
   }
 }
+run();
 export {
   run
 };
