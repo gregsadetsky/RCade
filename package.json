@@ -9,7 +9,7 @@
     "action-deploy",
     "api",
     "runtime",
-    "sdk",
+    "sdk/typescript",
     "plugins/input-classic"
   ],
   "scripts": {
