@@ -16,9 +16,13 @@
     "dev:web": "bun run --cwd web dev",
     "dev:client": "bun run --cwd client dev",
     "build:cli": "bun run --cwd cli build",
-    "check": "bun run --cwd web check"
+    "check": "bun run --cwd web check",
+    "prepare": "husky"
   },
   "dependencies": {
     "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
   }
 }
