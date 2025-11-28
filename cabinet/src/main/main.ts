@@ -28,7 +28,7 @@ const apiClient = Client.new();
 const cacheDir = path.join(app.getPath('userData'), 'game-cache');
 
 // Track running game servers
-const gameServers = new Map<string, { server: ReturnType<typeof serve>; port: number }>();
+const gameServers = new Map<string, { server: ReturnType<typeof serve>; port: number; controller: AbortController }>();
 
 function getCachePath(gameId: string, version: string): string {
   return path.join(cacheDir, gameId, version);
@@ -78,7 +78,7 @@ async function findAvailablePort(): Promise<number> {
   });
 }
 
-async function startGameServer(gameId: string, version: string): Promise<number> {
+async function startGameServer(gameId: string, version: string, controller: AbortController): Promise<number> {
   const serverKey = `${gameId}@${version}`;
 
   // Return existing server port if already running
@@ -128,7 +128,7 @@ async function startGameServer(gameId: string, version: string): Promise<number>
 
   const server = serve({ fetch: app.fetch, port });
 
-  gameServers.set(serverKey, { server, port });
+  gameServers.set(serverKey, { server, port, controller });
   return port;
 }
 
@@ -190,6 +190,7 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('load-game', async (event, game: GameInfo): Promise<Omit<LoadGameResult, "pluginPorts">> => {
     const { id, latestVersion } = game;
+    const abortController = new AbortController();
 
     const cached = await isGameCached(id, latestVersion);
     if (!cached) {
@@ -203,14 +204,14 @@ app.whenReady().then(async () => {
       await downloadAndExtract(contentUrl, id, latestVersion);
     }
 
-    const port = await startGameServer(id, latestVersion);
+    const port = await startGameServer(id, latestVersion, abortController);
 
     const pluginPorts: Record<string, Record<string, number>> = {};
     const ports = [];
 
     if (game.dependencies.findIndex(v => v.name === "@rcade/input-classic" && v.version === "1.0.0") != -1) {
       pluginPorts["@rcade/input-classic"] = {
-        "1.0.0": ports.push(rcadeInputClassic(event.sender)) - 1,
+        "1.0.0": ports.push(rcadeInputClassic(event.sender, abortController.signal)) - 1,
       }
     }
 
@@ -224,6 +225,7 @@ app.whenReady().then(async () => {
     const existing = gameServers.get(serverKey);
     if (existing) {
       existing.server.close();
+      existing.controller.abort();
       gameServers.delete(serverKey);
       console.log(`[GameServer] Stopped server for ${serverKey}`);
     }

@@ -19,8 +19,8 @@ const MAP = {
     "Digit2": { type: "system", player: 0, button: "TWO_PLAYER" },
 } as const;
 
-async function main(web: Electron.WebContents, port: MessagePortMain) {
-    web.on('before-input-event', (event, input) => {
+async function main(web: Electron.WebContents, port: MessagePortMain, aborter: AbortSignal) {
+    const handler = (event: Electron.Event, input: Electron.Input) => {
         const mapping = MAP[input.code as keyof typeof MAP];
 
         if (mapping) {
@@ -31,13 +31,19 @@ async function main(web: Electron.WebContents, port: MessagePortMain) {
 
             port.postMessage(message);
         }
-    })
+    };
+
+    web.on('before-input-event', handler);
+
+    aborter.addEventListener('abort', () => {
+        web.off('before-input-event', handler);
+    }, { once: true });
 }
 
-export function rcadeInputClassic(web: Electron.WebContents): MessagePortMain {
+export function rcadeInputClassic(web: Electron.WebContents, aborter: AbortSignal): MessagePortMain {
     const channel = new MessageChannelMain();
 
-    main(web, channel.port1)
+    main(web, channel.port1, aborter)
 
     return channel.port2;
 }
