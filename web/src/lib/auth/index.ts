@@ -22,7 +22,6 @@ export const { handle: authHandle, signIn, signOut } = SvelteKitAuth({
     trustHost: true,
     callbacks: {
         jwt({ token, user }) {
-            console.log({ user })
             if (user) {
                 token.id = user.id?.toString();
                 token.rc_id = (user as any).rc_id?.toString();

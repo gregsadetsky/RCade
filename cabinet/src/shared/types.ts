@@ -1,4 +1,16 @@
+import { GameManifest } from '@rcade/api';
 import { z } from 'zod';
+
+export interface PackageVersion {
+  packageId: string;
+  version: string;
+}
+
+export interface CliOptions {
+  manifest: GameManifest | null;
+  noExit: boolean;
+  overrides: Map<string, string>;
+}
 
 export const VersionsSchema = z.object({
   node: z.string(),
@@ -9,9 +21,9 @@ export const VersionsSchema = z.object({
 export type Versions = z.infer<typeof VersionsSchema>;
 
 export interface GameInfo {
-  id: string;
+  id: string | undefined;
   name: string;
-  latestVersion: string;
+  latestVersion: string | undefined;
   dependencies: {
     name: string,
     version: string,
@@ -23,8 +35,9 @@ export interface LoadGameResult {
 }
 
 export interface RcadeAPI {
+  getArgs: () => CliOptions;
   getGames: () => Promise<GameInfo[]>;
   loadGame: (game: GameInfo) => Promise<LoadGameResult>;
-  unloadGame: (gameId: string, version: string) => Promise<void>;
+  unloadGame: (gameId: string | undefined, gameName: string, version: string | undefined) => Promise<void>;
   onMenuKey: (callback: () => void) => () => void;
 }

@@ -50,3 +50,10 @@ export const STATUS = { connected: false };
         }
     };
 })()
+
+if (import.meta.hot) {
+    import.meta.hot.accept(() => {
+        // Force full reload when SDK changes
+        (import.meta.hot as any).invalidate();
+    });
+}

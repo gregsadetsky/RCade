@@ -1,10 +1,19 @@
-import type { GameInfo } from '../shared/types';
+import { type GameInfo } from '../shared/types';
 
 type Route =
   | { page: 'carousel' }
   | { page: 'game'; game: GameInfo };
 
-let currentRoute = $state<Route>({ page: 'carousel' });
+const { manifest: initialManifest } = window.rcade.getArgs();
+
+let currentRoute = $state<Route>(initialManifest == null ? { page: 'carousel' } : {
+  page: "game", game: {
+    id: undefined,
+    name: initialManifest.name,
+    latestVersion: initialManifest.version ?? undefined,
+    dependencies: initialManifest.dependencies,
+  }
+});
 
 export function getRoute() {
   return currentRoute;

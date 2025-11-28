@@ -11,6 +11,9 @@ import { Client, Game } from '@rcade/api';
 import * as tar from 'tar';
 import type { GameInfo, LoadGameResult } from '../shared/types';
 import { rcadeInputClassic } from '../plugins/rcade-input-classic/index.js';
+import { parseCliArgs } from "./args.js";
+
+const args = parseCliArgs();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +31,7 @@ const apiClient = Client.new();
 const cacheDir = path.join(app.getPath('userData'), 'game-cache');
 
 // Track running game servers
-const gameServers = new Map<string, { server: ReturnType<typeof serve>; port: number; controller: AbortController }>();
+const gameServers = new Map<string, { server?: ReturnType<typeof serve>; url: string; controller: AbortController }>();
 
 function getCachePath(gameId: string, version: string): string {
   return path.join(cacheDir, gameId, version);
@@ -78,13 +81,13 @@ async function findAvailablePort(): Promise<number> {
   });
 }
 
-async function startGameServer(gameId: string, version: string, controller: AbortController): Promise<number> {
+async function startGameServer(gameId: string, version: string, controller: AbortController): Promise<string> {
   const serverKey = `${gameId}@${version}`;
 
   // Return existing server port if already running
   const existing = gameServers.get(serverKey);
   if (existing) {
-    return existing.port;
+    return existing.url;
   }
 
   const gamePath = getCachePath(gameId, version);
@@ -128,13 +131,33 @@ async function startGameServer(gameId: string, version: string, controller: Abor
 
   const server = serve({ fetch: app.fetch, port });
 
-  gameServers.set(serverKey, { server, port, controller });
-  return port;
+  await new Promise((resolve) => {
+    server.once("listening", resolve);
+  });
+
+  const address = server.address();
+  let url;
+
+  if (address && typeof address === "object") {
+    const protocol = 'http'; // or 'https' if using TLS
+    const host = address.address === '::' ? 'localhost' : address.address;
+    const port = address.port;
+    url = `${protocol}://${host}:${port}`;
+  } else if (address) {
+    url = address;
+  } else {
+    url = `http://localhost:${port}`;
+  };
+
+  gameServers.set(serverKey, { server, url, controller });
+  return url;
 }
 
 const fullscreen = !isDev;
 
 function createWindow(): void {
+  process.env.STARTUP_CONFIG = JSON.stringify(args);
+
   const mainWindow = new BrowserWindow({
     fullscreen: fullscreen,
     ...(isDev && {
@@ -157,7 +180,7 @@ function createWindow(): void {
 
   // Capture ShiftLeft even when iframe has focus
   mainWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.type === 'keyDown' && input.code === 'ShiftLeft') {
+    if (input.type === 'keyDown' && input.code === 'ShiftLeft' && !args.noExit) {
       mainWindow.webContents.send('menu-key-pressed');
     }
   });
@@ -192,19 +215,43 @@ app.whenReady().then(async () => {
     const { id, latestVersion } = game;
     const abortController = new AbortController();
 
-    const cached = await isGameCached(id, latestVersion);
-    if (!cached) {
-      // Fetch fresh game data to get a valid (non-expired) contentUrl
-      const freshGame = await apiClient.getGame(id);
-      const contentUrl = freshGame.latest().contentUrl();
+    let url;
 
-      if (!contentUrl) {
-        throw new Error('No content URL available for this game');
+    if (id != undefined && latestVersion != undefined) {
+      const cached = await isGameCached(id, latestVersion);
+      if (!cached) {
+        // Fetch fresh game data to get a valid (non-expired) contentUrl
+        const freshGame = await apiClient.getGame(id);
+        const contentUrl = freshGame.latest().contentUrl();
+
+        if (!contentUrl) {
+          throw new Error('No content URL available for this game');
+        }
+        await downloadAndExtract(contentUrl, id, latestVersion);
       }
-      await downloadAndExtract(contentUrl, id, latestVersion);
-    }
 
-    const port = await startGameServer(id, latestVersion, abortController);
+      url = await startGameServer(id, latestVersion, abortController);
+    } else if (id == undefined) {
+      let overrideName;
+
+      if (latestVersion === undefined) {
+        overrideName = `${game.name}@LOCAL`
+      } else {
+        overrideName = `${game.name}@${latestVersion}`
+      }
+
+      const override = args.overrides.get(overrideName);
+
+      if (override != undefined) {
+        url = override;
+      } else {
+        throw new Error("Cannot load local game without override specifying hosted url.");
+      }
+
+      gameServers.set(overrideName, { server: undefined, url, controller: abortController })
+    } else {
+      throw new Error("Cannot load remote game with local_unversioned specifier. how did this happen?")
+    }
 
     const pluginPorts: Record<string, Record<string, number>> = {};
     const ports = [];
@@ -217,14 +264,27 @@ app.whenReady().then(async () => {
 
     event.sender.postMessage("plugin-ports", { structure: pluginPorts }, ports);
 
-    return { url: `http://localhost:${port}` };
+    return { url };
   });
 
-  ipcMain.handle('unload-game', async (_event, gameId: string, version: string): Promise<void> => {
-    const serverKey = `${gameId}@${version}`;
+  ipcMain.handle('unload-game', async (_event, gameId: string | undefined, gameName: string, version: string | undefined): Promise<void> => {
+    let serverKey;
+
+    if (gameId != undefined && version != undefined) {
+      serverKey = `${gameId}@${version}`
+    } else if (gameId === undefined) {
+      if (version == undefined) {
+        serverKey = `${gameName}@LOCAL`
+      } else {
+        serverKey = `${gameName}@${version}`
+      }
+    } else {
+      throw new Error("Cannot unload game with id and local_unversioned specifier. how did this happen?")
+    }
+
     const existing = gameServers.get(serverKey);
     if (existing) {
-      existing.server.close();
+      existing.server?.close();
       existing.controller.abort();
       gameServers.delete(serverKey);
       console.log(`[GameServer] Stopped server for ${serverKey}`);

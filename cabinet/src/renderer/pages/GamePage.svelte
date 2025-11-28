@@ -9,10 +9,14 @@
 
   let { game }: Props = $props();
 
+  const PORTS_TAKEN = Symbol();
+
   let gameUrl = $state<string | null>(null);
-  let gamePluginPorts: {
-    [name: string]: { [version: string]: MessagePort };
-  } = {};
+  let gamePluginPorts:
+    | {
+        [name: string]: { [version: string]: MessagePort };
+      }
+    | typeof PORTS_TAKEN = {};
   let loading = $state(true);
   let error = $state<string | null>(null);
 
@@ -45,7 +49,6 @@
                   }
                 }
 
-                console.log({ mappedPorts });
                 resolve(mappedPorts);
               }
             },
@@ -53,10 +56,9 @@
           );
         });
 
+        // TODO: This can cause a leak with HMR. Shouldn't happen in prod - but we don't unload the game on unmount.
         const { url } = await window.rcade.loadGame($state.snapshot(game));
         const pluginPorts = await pluginPortsPromise;
-
-        console.log({ result: { url, pluginPorts } });
 
         gameUrl = url;
         gamePluginPorts = pluginPorts;
@@ -70,7 +72,7 @@
 
   async function handleMenuKey() {
     if (window.rcade) {
-      await window.rcade.unloadGame(game.id, game.latestVersion);
+      await window.rcade.unloadGame(game.id, game.name, game.latestVersion);
     }
     navigateToCarousel();
   }
@@ -81,6 +83,7 @@
     if (window.rcade) {
       unsubscribeMenuKey = window.rcade.onMenuKey(handleMenuKey);
     }
+
     loadGame();
   });
 
@@ -94,7 +97,13 @@
     frame?.focus();
   }, 100);
 
-  function request_plugin_channels() {
+  async function request_plugin_channels() {
+    if (gamePluginPorts === PORTS_TAKEN) {
+      await window.rcade.unloadGame(game.id, game.name, game.latestVersion);
+      document.location.reload();
+      return;
+    }
+
     for (let name of Object.keys(gamePluginPorts)) {
       for (let version of Object.keys(gamePluginPorts[name])) {
         const message = {
@@ -107,13 +116,11 @@
 
         const port = gamePluginPorts[name][version];
 
-        console.log({ message, port });
-
         frame?.contentWindow?.postMessage(message, "*", [port]);
       }
     }
 
-    gamePluginPorts = {};
+    gamePluginPorts = PORTS_TAKEN;
   }
 
   onMount(() => {
@@ -150,7 +157,9 @@
       <h1 class="game-name">{game.name}</h1>
       <p class="error">{error}</p>
     </div>
-    <p class="hint">Press Menu to return</p>
+    {#if !window.rcade.getArgs().noExit}
+      <p class="hint">Press Menu to return</p>
+    {/if}
   </div>
 {:else if gameUrl}
   <iframe bind:this={frame} class="game-frame" src={gameUrl} title={game.name}

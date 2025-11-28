@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { getRoute } from './router.svelte';
-  import CarouselPage from './pages/CarouselPage.svelte';
-  import GamePage from './pages/GamePage.svelte';
+  import { getRoute } from "./router.svelte";
+  import CarouselPage from "./pages/CarouselPage.svelte";
+  import GamePage from "./pages/GamePage.svelte";
 
   const route = $derived(getRoute());
 </script>
 
-{#if route.page === 'carousel'}
+{#if route.page === "carousel"}
   <CarouselPage />
-{:else if route.page === 'game'}
+{:else if route.page === "game"}
   <GamePage game={route.game} />
 {/if}
 
@@ -29,10 +29,15 @@
   :global(body) {
     background: #0a0a14;
     color: #fff;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif;
   }
 
   :global(*) {
-    cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='), none !important;
+    cursor:
+      url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="),
+      none !important;
   }
 </style>
