@@ -1,0 +1,22 @@
+[package]
+name = "rcade-sdk"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hashbrown = "0.16.1"
+js-sys = { version = "0.3.83", default-features = false }
+wasm-bindgen = { version = "0.2", default-features = false }
+wasm-bindgen-futures = { version = "0.4.56", default-features = false }
+web-sys = { version = "0.3.83", default-features = false, features = [
+    "Blob",
+    "BlobPropertyBag",
+    "MessageEvent",
+    "MessagePort",
+    "Url",
+    "Window",
+    "Worker",
+    "WorkerOptions",
+    "WorkerType",
+    "DedicatedWorkerGlobalScope",
+] }

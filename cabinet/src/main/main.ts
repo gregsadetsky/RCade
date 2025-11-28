@@ -18,7 +18,9 @@ const args = parseCliArgs();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDev = !app.isPackaged;
-const scaleFactor = parseFloat(process.env.RCADE_SCALE_FACTOR || (isDev ? '3' : '1'));
+const scaleFactor = parseFloat(process.env.RCADE_SCALE_FACTOR || (isDev ? '4' : '1'));
+
+app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer');
 
 // Hide cursor on Linux
 if (process.platform === 'linux') {
