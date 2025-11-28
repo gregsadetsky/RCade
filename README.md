@@ -37,7 +37,7 @@ Your game is now ready. Push to GitHub and it deploys automatically.
 └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
-1. **Create** - Run `npx create-rcade` to scaffold a new game
+1. **Create** - Run `npm create rcade@latest` to scaffold a new game
 2. **Build** - Write your game using JavaScript, TypeScript, or Rust
 3. **Push** - Push to the `main` branch on GitHub
 4. **Deploy** - GitHub Actions automatically builds and deploys to RCade
