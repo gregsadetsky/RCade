@@ -14,13 +14,11 @@ export function parseCliArgs(): CliOptions {
         options: {
             override: {
                 type: 'string',
-                multiple: true,
-                short: 'o'
+                multiple: true
             },
             'no-exit': {
                 type: 'boolean',
-                default: false,
-                short: 'n'
+                default: false
             }
         },
         allowPositionals: true
