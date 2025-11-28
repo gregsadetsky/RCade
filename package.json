@@ -10,7 +10,7 @@
     "api",
     "runtime",
     "sdk/typescript",
-    "plugins/input-classic"
+    "plugins/input-classic/typescript"
   ],
   "scripts": {
     "dev:web": "bun run --cwd web dev",
