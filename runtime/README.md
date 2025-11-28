@@ -1,15 +1,10 @@
 # @rcade/runtime
 
-To install dependencies:
+Game runtime environment for RCade. Handles plugin loading and communication between games and the cabinet.
+
+## Development
 
 ```bash
 bun install
-```
-
-To run:
-
-```bash
 bun run index.ts
 ```
-
-This project was created using `bun init` in bun v1.1.31. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.

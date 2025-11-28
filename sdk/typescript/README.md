@@ -1,15 +1,24 @@
 # @rcade/sdk
 
-To install dependencies:
+TypeScript SDK for building RCade games and plugins.
+
+## Installation
+
+```bash
+npm install @rcade/sdk
+```
+
+## Usage
+
+```typescript
+import { PluginChannel } from "@rcade/sdk";
+
+const channel = await PluginChannel.acquire("@rcade/my-plugin", "1.0.0");
+```
+
+## Development
 
 ```bash
 bun install
+bun run build
 ```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.1.31. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.

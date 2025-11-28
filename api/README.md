@@ -1,15 +1,18 @@
 # @rcade/api
 
-To install dependencies:
+Shared API types and Zod schemas for the RCade ecosystem.
+
+## Usage
+
+```typescript
+import { GameManifest } from "@rcade/api";
+
+const manifest = GameManifest.parse(data);
+```
+
+## Development
 
 ```bash
 bun install
+bun run build
 ```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.1.31. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
