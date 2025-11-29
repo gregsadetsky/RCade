@@ -33828,6 +33828,7 @@ var ManifestDependency = object({
   version: ZodSemverUnbranded
 });
 var Manifest = object({
+  kind: literal("game").optional(),
   name: string2().nonempty().regex(/[a-zA-Z0-9_-]*/),
   display_name: string2().optional(),
   description: string2(),
@@ -33868,6 +33869,25 @@ var GameResponse = exports_external.object({
   versions: exports_external.array(GameVersionResponse)
 });
 var GamesResponse = exports_external.array(GameResponse);
+var ManifestAuthor2 = object({
+  display_name: string2(),
+  recurse_id: number2().optional()
+});
+var regexSemverNumberedGroups2 = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+var ZodSemverUnbranded2 = string2().regex(regexSemverNumberedGroups2);
+var ManifestDependency2 = object({
+  name: string2(),
+  version: ZodSemverUnbranded2
+});
+var Manifest2 = object({
+  kind: literal("plugin"),
+  name: string2().nonempty().regex(/[a-zA-Z0-9_-]*/),
+  display_name: string2().optional(),
+  description: string2(),
+  visibility: _enum2(["public", "internal", "private"]),
+  version: ZodSemverUnbranded2.optional(),
+  authors: union([ManifestAuthor2, array(ManifestAuthor2).min(1)])
+});
 
 // src/index.ts
 import * as fs12 from "fs";
