@@ -95,13 +95,13 @@ jobs:
           bunx --bun tsc -p tsconfig.main.json
           bunx --bun tsc -p tsconfig.preload.json
           bunx --bun vite build
-          bunx --bun electron-builder --mac --${{ matrix.arch }}
+          bunx --bun electron-builder --mac --arch=${{ matrix.arch }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cabinet-darwin-${{ matrix.arch }}
-          path: cabinet/release/rcade-cabinet-*.zip
+          name: cabinet-macos-${{ matrix.arch }}
+          path: cabinet/release/rcade-cabinet-mac-${{ matrix.arch }}.zip
 
   build-windows:
     name: Build Windows
@@ -133,8 +133,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cabinet-win32-x64
-          path: cabinet/release/rcade-cabinet-*.zip
+          name: cabinet-windows
+          path: cabinet/release/rcade-cabinet-win-*.zip
 
   build-linux:
     name: Build Linux
@@ -166,8 +166,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cabinet-linux-x64
-          path: cabinet/release/rcade-cabinet-*.AppImage
+          name: cabinet-linux
+          path: cabinet/release/rcade-cabinet-linux-*.AppImage
 
   release:
     name: Create Release
@@ -192,7 +192,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/cabinet-darwin-x64/*
-            artifacts/cabinet-darwin-arm64/*
-            artifacts/cabinet-win32-x64/*
-            artifacts/cabinet-linux-x64/*
+            artifacts/cabinet-macos-x64/*
+            artifacts/cabinet-macos-arm64/*
+            artifacts/cabinet-windows/*
+            artifacts/cabinet-linux/*
