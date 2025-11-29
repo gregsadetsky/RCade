@@ -52,6 +52,12 @@ Basic Vite setup with vanilla JavaScript. Best for quick prototypes.
 ### Vanilla TypeScript
 Vite setup with TypeScript. Best for larger projects that benefit from type safety.
 
+### p5.js
+Vite setup with [p5.js](https://p5js.org/) for creative coding. Great for visual games and animations with an easy-to-use drawing API.
+
+### p5.js + TypeScript
+p5.js with TypeScript support. Combines creative coding with type safety.
+
 ### Vanilla Rust
 Trunk setup compiling Rust to WebAssembly. Best for performance-critical games.
 
