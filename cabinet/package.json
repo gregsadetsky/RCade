@@ -10,7 +10,7 @@
     "dev:electron": "bun run build:main && bun run build:preload && electron --trace-warnings .",
     "build:api": "bun run --cwd ../api build",
     "build:main": "bun build src/main/main.ts --outdir dist/main --target node --external electron",
-    "build:preload": "bun build src/main/preload.ts --outdir dist/main --target node --external electron",
+    "build:preload": "bun build src/main/preload.ts --outdir dist/main --target node --format cjs --external electron",
     "build": "bun run build:api && bun run build:main && bun run build:preload && vite build && electron-builder",
     "build:mac": "bun run build:api && bun run build:main && bun run build:preload && vite build && electron-builder --mac",
     "build:win": "bun run build:api && bun run build:main && bun run build:preload && vite build && electron-builder --win",

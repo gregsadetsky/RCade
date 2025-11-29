@@ -3,6 +3,8 @@ import { Command } from "commander";
 import packageJson from "./package.json";
 
 import { createCommand } from "./src";
+import { devCommand } from "./src/dev";
+import { cacheCommand } from "./src/cache";
 
 const program = new Command();
 
@@ -12,5 +14,7 @@ program
   .version(packageJson.version);
 
 program.addCommand(createCommand);
+program.addCommand(devCommand);
+program.addCommand(cacheCommand);
 
 program.parse();
