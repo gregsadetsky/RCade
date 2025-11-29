@@ -1,11 +1,12 @@
 import { GithubOIDCValidator } from "$lib/auth/github";
 import { Game } from "$lib/game";
 import { RecurseAPIError } from "$lib/recurse";
-import { GameManifest } from "@rcade/api";
+import { GameManifest, PluginManifest } from "@rcade/api";
 import type { RequestHandler } from "@sveltejs/kit";
 import semver from "semver";
 import { ZodError } from "zod";
 import * as jose from "jose";
+import { Plugin } from "$lib/plugin";
 
 const VALIDATOR = new GithubOIDCValidator();
 
@@ -17,6 +18,11 @@ function jsonResponse(body: object, status: number): Response {
 }
 
 export const POST: RequestHandler = async ({ params, request }) => {
+    const deploymentName = params.deployment_name ?? "";
+    if (!deploymentName) {
+        return jsonResponse({ error: 'Deployment name is required' }, 400);
+    }
+
     const header = request.headers.get("Authorization");
 
     if (!header?.startsWith("Bearer ")) {
@@ -47,38 +53,66 @@ export const POST: RequestHandler = async ({ params, request }) => {
         throw error;
     }
 
-    let manifest;
+    let body;
+
     try {
-        const body = await request.json();
-        manifest = GameManifest.parse(body);
+        body = await request.json();
     } catch (error) {
         if (error instanceof SyntaxError) {
             return jsonResponse({ error: 'Invalid JSON in request body' }, 400);
         }
+        throw error;
+    }
+
+    let kind: "game" | "plugin" = "game";
+
+    if ("kind" in body && body.kind === "plugin") {
+        kind = "plugin";
+    }
+
+    let manifest;
+    try {
+        if (kind === "game") {
+            manifest = GameManifest.parse(body);
+        } else {
+            manifest = PluginManifest.parse(body);
+        }
+    } catch (error) {
         if (error instanceof ZodError) {
             const issues = error.issues.map(i => `${i.path.join('.')}: ${i.message}`);
-            return jsonResponse({ error: 'Invalid game manifest', details: issues }, 400);
+            return jsonResponse({ error: 'Invalid manifest', details: issues }, 400);
         }
         throw error;
     }
 
-    const gameName = params.game_name ?? "";
-    if (!gameName) {
-        return jsonResponse({ error: 'Game name is required' }, 400);
+    if (deploymentName !== manifest.name) {
+        return jsonResponse({ error: 'Deployment name does not match object name in manifest' }, 400);
+    }
+
+    let object;
+
+    if (kind === "game") {
+        object = await Game.byName(deploymentName);
+    } else {
+        object = await Plugin.byName(deploymentName);
     }
 
     try {
-        let game = await Game.byName(gameName);
         let version: string;
 
-        if (game == undefined) {
+        if (object == undefined) {
             version = manifest.version ?? "1.0.0";
-            game = await Game.new(manifest.name, auth);
+
+            if (kind === "game") {
+                object = await Game.new(manifest.name, auth);
+            } else {
+                object = await Plugin.new(manifest.name, auth);
+            }
         } else {
             if (manifest.version) {
                 version = manifest.version;
             } else {
-                const latest = await game.latestVersionNumber();
+                const latest = await object.latestVersionNumber();
                 if (latest == undefined) {
                     version = "1.0.0";
                 } else {
@@ -92,7 +126,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
             }
         }
 
-        const { upload_url, expires } = await game.publishVersion(version, manifest);
+        const { upload_url, expires } = await object.publishVersion(version, manifest as any);
 
         return jsonResponse({ upload_url, expires }, 200);
     } catch (error) {

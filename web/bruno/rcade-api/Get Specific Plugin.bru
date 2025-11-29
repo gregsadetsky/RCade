@@ -1,0 +1,16 @@
+meta {
+  name: Get Specific Plugin
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{protocol}}://{{host}}{{api_base}}/games
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

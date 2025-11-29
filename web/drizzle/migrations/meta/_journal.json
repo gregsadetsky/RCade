@@ -71,6 +71,13 @@
       "when": 1764235112708,
       "tag": "0009_curved_mister_fear",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1764399966071,
+      "tag": "0010_clear_mongu",
+      "breakpoints": true
     }
   ]
 }

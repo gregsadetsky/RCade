@@ -1,0 +1,135 @@
+meta {
+  name: Deploy a Plugin
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{protocol}}://{{host}}{{api_base}}/deployments/{{game_name}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: Bearer X
+}
+
+body:json {
+  {
+    "name": "DEMO",
+    "description": "A Demo Deployment",
+    "visibility": "public",
+    "version": "1.0.0",
+    "authors": {
+      "display_name": "Rose Kodsi-Hall"
+    },
+    "dependencies": [
+      { "name": "@rcade/input-classic", "version": "1.0.0" }
+    ]
+  }
+}
+
+vars:pre-request {
+  game_name: demo_game
+  github_user: roobscoob
+  github_repo: fake_repo
+}
+
+script:pre-request {
+  const crypto = require('crypto');
+  // JWT Configuration
+  const payload = {
+    "jti": "example-id",
+    "sub": "repo:octo-org/octo-repo:environment:prod",
+    "environment": "prod",
+    "aud": "https://github.com/octo-org",
+    "ref": "refs/heads/main",
+    "sha": "example-sha",
+    "repository": `${bru.getRequestVar("github_user")}/${bru.getRequestVar("github_repo")}`,
+    "repository_owner": `${bru.getRequestVar("github_user")}`,
+    "actor_id": "12",
+    "repository_visibility": "private",
+    "repository_id": "74",
+    "repository_owner_id": "65",
+    "run_id": "example-run-id",
+    "run_number": "10",
+    "run_attempt": "2",
+    "runner_environment": "github-hosted",
+    "actor": "octocat",
+    "workflow": "example-workflow",
+    "head_ref": "",
+    "base_ref": "",
+    "event_name": "workflow_dispatch",
+    "ref_type": "branch",
+    "job_workflow_ref": "octo-org/octo-automation/.github/workflows/oidc.yml@refs/heads/main",
+    "iss": "https://token.actions.githubusercontent.com",
+    nbf: Math.floor(Date.now() / 1000),
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hour expiration
+  };
+  
+  // Generate RSA key pair (2048 bits)
+  // Note: This generates a new key each time, so tokens won't be verifiable across requests
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: {
+      type: 'spki',
+      format: 'pem'
+    },
+    privateKeyEncoding: {
+      type: 'pkcs1',
+      format: 'pem'
+    }
+  });
+  
+  const algorithm = 'RS256'; // RSASSA-PKCS1-v1_5 with SHA-256
+  
+  // Helper function to base64url encode
+  function base64urlEncode(str) {
+    return Buffer.from(str)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  }
+  
+  // Create JWT Header
+  const header = {
+    alg: algorithm,
+    typ: 'JWT'
+  };
+  
+  // Encode header and payload
+  const encodedHeader = base64urlEncode(JSON.stringify(header));
+  const encodedPayload = base64urlEncode(JSON.stringify(payload));
+  
+  // Create signature using RSA private key
+  const signatureInput = `${encodedHeader}.${encodedPayload}`;
+  const signature = crypto
+    .createSign('RSA-SHA256')
+    .update(signatureInput)
+    .sign(privateKey, 'base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+  
+  // Construct final JWT
+  const jwt = `${encodedHeader}.${encodedPayload}.${signature}`;
+  
+  // Set the JWT as an environment variable or request variable
+  bru.setVar('jwt_token', jwt);
+  
+  // Also store the public key if you need it for verification
+  bru.setVar('jwt_public_key', publicKey);
+  
+  // Optionally set it directly in the Authorization header
+  req.setHeader('Authorization', `Bearer ${jwt}`);
+  
+  console.log('JWT Token generated:', jwt);
+  console.log('Public Key (for verification):', publicKey);
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

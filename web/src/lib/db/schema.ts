@@ -74,51 +74,51 @@ export const gameVersionsRelations = relations(gameVersions, ({ many, one }) => 
 
 /// Plugins
 
-// export const plugins = sqliteTable('plugins', {
-//     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
-//     name: text('name').notNull(),
-//     github_author: text("github_author").notNull(),
-//     github_repo: text("github_repo").notNull(),
-//     owner_rc_id: numeric("owner_rc_id").notNull(),
-// });
+export const plugins = sqliteTable('plugins', {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    name: text('name').notNull(),
+    github_author: text("github_author").notNull(),
+    github_repo: text("github_repo").notNull(),
+    owner_rc_id: numeric("owner_rc_id").notNull(),
+});
 
-// export const pluginVersions = sqliteTable('plugin_versions', {
-//     pluginId: text("plugin_id").notNull().references(() => plugins.id, { onDelete: "cascade" }),
-//     displayName: text("display_name"),
-//     description: text("description").notNull(),
-//     visibility: text("visibility", { enum: ["public", "internal", "private"] }).notNull(),
-//     version: text("version").notNull(),
-// }, (t) => [
-//     unique().on(t.pluginId, t.version),
-// ]);
+export const pluginVersions = sqliteTable('plugin_versions', {
+    pluginId: text("plugin_id").notNull().references(() => plugins.id, { onDelete: "cascade" }),
+    displayName: text("display_name"),
+    description: text("description").notNull(),
+    visibility: text("visibility", { enum: ["public", "internal", "private"] }).notNull(),
+    version: text("version").notNull(),
+}, (t) => [
+    unique().on(t.pluginId, t.version),
+]);
 
-// export const pluginAuthors = sqliteTable('plugin_authors', {
-//     pluginId: text("plugin_id").notNull(),
-//     pluginVersion: text("plugin_version").notNull(),
-//     recurse_id: integer("recurse_id"),
-//     display_name: text("display_name").notNull(),
-// }, (t) => [
-//     foreignKey({
-//         columns: [t.pluginId, t.pluginVersion],
-//         foreignColumns: [pluginVersions.pluginId, pluginVersions.version],
-//     }).onDelete("cascade"),
-// ]);
+export const pluginAuthors = sqliteTable('plugin_authors', {
+    pluginId: text("plugin_id").notNull(),
+    pluginVersion: text("plugin_version").notNull(),
+    recurse_id: integer("recurse_id"),
+    display_name: text("display_name").notNull(),
+}, (t) => [
+    foreignKey({
+        columns: [t.pluginId, t.pluginVersion],
+        foreignColumns: [pluginVersions.pluginId, pluginVersions.version],
+    }).onDelete("cascade"),
+]);
 
-// export const pluginsRelations = relations(plugins, ({ many }) => ({
-//     versions: many(pluginVersions),
-// }));
+export const pluginsRelations = relations(plugins, ({ many }) => ({
+    versions: many(pluginVersions),
+}));
 
-// export const pluginAuthorsRelations = relations(pluginAuthors, ({ one }) => ({
-//     pluginVersion: one(pluginVersions, {
-//         fields: [pluginAuthors.pluginId, pluginAuthors.pluginVersion],
-//         references: [pluginVersions.pluginId, pluginVersions.version],
-//     }),
-// }));
+export const pluginAuthorsRelations = relations(pluginAuthors, ({ one }) => ({
+    pluginVersion: one(pluginVersions, {
+        fields: [pluginAuthors.pluginId, pluginAuthors.pluginVersion],
+        references: [pluginVersions.pluginId, pluginVersions.version],
+    }),
+}));
 
-// export const pluginVersionsRelations = relations(pluginVersions, ({ many, one }) => ({
-//     authors: many(pluginAuthors),
-//     plugin: one(plugins, {
-//         fields: [pluginVersions.pluginId],
-//         references: [plugins.id],
-//     }),
-// }));
+export const pluginVersionsRelations = relations(pluginVersions, ({ many, one }) => ({
+    authors: many(pluginAuthors),
+    plugin: one(plugins, {
+        fields: [pluginVersions.pluginId],
+        references: [plugins.id],
+    }),
+}));

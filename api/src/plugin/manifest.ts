@@ -21,7 +21,7 @@ export const ManifestDependency = z.object({
 })
 
 export const Manifest = z.object({
-    kind: z.literal("game").optional(),
+    kind: z.literal("plugin"),
     name: z
         .string()
         .nonempty()
@@ -31,7 +31,6 @@ export const Manifest = z.object({
     visibility: z.enum(["public", "internal", "private"]),
     version: ZodSemverUnbranded.optional(),
     authors: z.union([ManifestAuthor, z.array(ManifestAuthor).min(1)]),
-    dependencies: z.array(ManifestDependency),
 });
 
 export type Manifest = z.infer<typeof Manifest>;

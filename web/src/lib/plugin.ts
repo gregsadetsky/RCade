@@ -1,9 +1,9 @@
 import { eq, type InferSelectModel } from "drizzle-orm";
 import { getDb } from "./db";
-import { gameAuthors, gameDependencies, games, gameVersions } from "./db/schema";
+import { pluginAuthors, plugins, pluginVersions } from "./db/schema";
 import type { GithubOIDCClaims } from "./auth/github";
 import * as z from "zod";
-import { GameManifest } from "@rcade/api";
+import { PluginManifest } from "@rcade/api";
 import type { R2Bucket } from "@cloudflare/workers-types";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
@@ -25,34 +25,34 @@ const S3 = new S3Client({
     },
 });
 
-export class Game {
-    public static async all(): Promise<Game[]> {
-        return (await getDb().query.games.findMany({ with: { versions: { with: { authors: true, dependencies: true } } } }))
-            .map(game => new Game(game));
+export class Plugin {
+    public static async all(): Promise<Plugin[]> {
+        return (await getDb().query.plugins.findMany({ with: { versions: { with: { authors: true } } } }))
+            .map(game => new Plugin(game));
     }
 
-    public static async byId(id: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true } } }, where: eq(games.id, id) });
+    public static async byId(id: string): Promise<Plugin | undefined> {
+        let v = await getDb().query.plugins.findFirst({ with: { versions: { with: { authors: true } } }, where: eq(plugins.id, id) });
 
         if (v === undefined) {
             return undefined;
         }
 
-        return new Game(v);
+        return new Plugin(v);
     }
 
-    public static async byName(name: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true } } }, where: eq(games.name, name) });
+    public static async byName(name: string): Promise<Plugin | undefined> {
+        let v = await getDb().query.plugins.findFirst({ with: { versions: { with: { authors: true } } }, where: eq(plugins.name, name) });
 
         if (v === undefined) {
             return undefined;
         }
 
-        return new Game(v);
+        return new Plugin(v);
     }
 
-    public static async new(name: string, pushInfo: GithubOIDCClaims & { recurser: RecurseResponse }): Promise<Game> {
-        const result = await getDb().insert(games).values({
+    public static async new(name: string, pushInfo: GithubOIDCClaims & { recurser: RecurseResponse }): Promise<Plugin> {
+        const result = await getDb().insert(plugins).values({
             name,
 
             github_author: pushInfo.repository_owner,
@@ -61,26 +61,25 @@ export class Game {
             owner_rc_id: pushInfo.recurser.id.toString(), // TODO
         }).returning();
 
-        return new Game({
+        return new Plugin({
             ...result[0],
             versions: [],
         });
     }
 
-    private constructor(private data: InferSelectModel<typeof games> & {
-        versions: (InferSelectModel<typeof gameVersions> & {
-            authors: InferSelectModel<typeof gameAuthors>[],
-            dependencies: InferSelectModel<typeof gameDependencies>[],
+    private constructor(private data: InferSelectModel<typeof plugins> & {
+        versions: (InferSelectModel<typeof pluginVersions> & {
+            authors: InferSelectModel<typeof pluginAuthors>[],
         })[]
     }) { }
 
-    public async publishVersion(version: string, manifest: z.infer<typeof GameManifest>): Promise<{ upload_url: string, expires: number }> {
+    public async publishVersion(version: string, manifest: z.infer<typeof PluginManifest>): Promise<{ upload_url: string, expires: number }> {
         if (manifest.version !== undefined && manifest.version !== version) {
             throw new Error("Version mismatch");
         }
 
-        await getDb().insert(gameVersions).values({
-            gameId: this.data.id,
+        await getDb().insert(pluginVersions).values({
+            pluginId: this.data.id,
             version,
 
             displayName: manifest.display_name,
@@ -90,27 +89,17 @@ export class Game {
 
         const authors = Array.isArray(manifest.authors) ? manifest.authors : [manifest.authors];
 
-        await getDb().insert(gameAuthors).values(authors.map(author => ({
-            gameId: this.data.id,
-            gameVersion: version,
+        await getDb().insert(pluginAuthors).values(authors.map(author => ({
+            pluginId: this.data.id,
+            pluginVersion: version,
 
             display_name: author.display_name,
             recurse_id: author.recurse_id
         })));
 
-        if (manifest.dependencies.length > 0) {
-            await getDb().insert(gameDependencies).values(manifest.dependencies.map(dependency => ({
-                gameId: this.data.id,
-                gameVersion: version,
-
-                dependencyName: dependency.name,
-                dependencyVersion: dependency.version,
-            })));
-        }
-
         const upload_url = await getSignedUrl(
             S3,
-            new PutObjectCommand({ Bucket: "rcade", Key: `games/builds/${this.data.id}/${version}.tar.gz` }),
+            new PutObjectCommand({ Bucket: "rcade", Key: `plugins/builds/${this.data.id}/${version}/backend.tar.gz` }),
             { expiresIn: 3600 }
         );
 
@@ -141,7 +130,7 @@ export class Game {
                 r2Key["contents"] = {
                     url: await getSignedUrl(
                         S3,
-                        new GetObjectCommand({ Bucket: "rcade", Key: `games/builds/${this.data.id}/${version.version}.tar.gz` }),
+                        new GetObjectCommand({ Bucket: "rcade", Key: `plugins/builds/${this.data.id}/${version.version}.tar.gz` }),
                         { expiresIn: 3600 }
                     ),
                     expires: Date.now() + (3600 * 1000),
@@ -154,7 +143,6 @@ export class Game {
                 visibility: version.visibility,
                 version: version.version,
                 authors: version.authors.map(v => ({ display_name: v.display_name, recurse_id: v.recurse_id })),
-                dependencies: version.dependencies.map(v => ({ name: v.dependencyName, version: v.dependencyVersion })),
                 ...r2Key,
             }
         }));
@@ -175,11 +163,7 @@ export class Game {
         }
     }
 
-    public latestVersionNumber() {
+    public async latestVersionNumber() {
         return semver.sort(this.data.versions.map(v => v.version)).pop()
-    }
-
-    public version(version: string) {
-        return this.data.versions.find(v => v.version == version);
     }
 }

@@ -1,0 +1,1 @@
+export { Manifest as PluginManifest, ManifestAuthor as PluginManifestAuthor } from "./manifest.js";
