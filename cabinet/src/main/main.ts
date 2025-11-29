@@ -17,8 +17,11 @@ const args = parseCliArgs();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const isDev = !app.isPackaged;
-const scaleFactor = parseFloat(process.env.RCADE_SCALE_FACTOR || (isDev ? '4' : '1'));
+const isDev = !app.isPackaged || args.dev;
+
+// Scale factor of 2 is the largest reasonable size for a normal macbook screen
+// and should stay the default for development.
+const scaleFactor = args.scale ?? (isDev ? 2 : 1);
 
 app.commandLine.appendSwitch('enable-features', 'SharedArrayBuffer');
 
@@ -177,7 +180,7 @@ function createWindow(): void {
   });
 
   if (isDev) {
-    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
   // Capture ShiftLeft even when iframe has focus
@@ -191,7 +194,8 @@ function createWindow(): void {
     mainWindow.webContents.setZoomFactor(scaleFactor);
   });
 
-  if (isDev) {
+  if (!app.isPackaged) {
+    // Use Vite dev server only when running from source
     mainWindow.loadURL('http://localhost:5173');
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));

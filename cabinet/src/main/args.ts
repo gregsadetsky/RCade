@@ -19,10 +19,20 @@ export function parseCliArgs(): CliOptions {
             'no-exit': {
                 type: 'boolean',
                 default: false
+            },
+            'dev': {
+                type: 'boolean',
+                default: false
+            },
+            'scale': {
+                type: 'string'
             }
         },
         allowPositionals: true
     });
+
+    // Parse scale factor
+    const scale = values['scale'] ? parseFloat(values['scale']) : null;
 
     // Parse the first positional as a path
     const path = positionals.length > 0 ? positionals[0] : null;
@@ -51,6 +61,8 @@ export function parseCliArgs(): CliOptions {
     return {
         manifest: path ? GameManifest.parse(JSON.parse(readFileSync(path, "utf-8"))) : null,
         noExit: values['no-exit'] ?? false,
+        dev: values['dev'] ?? false,
+        scale,
         overrides
     };
 }
