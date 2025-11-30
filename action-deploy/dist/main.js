@@ -33819,6 +33819,10 @@ function date4(params) {
   return _coercedDate(ZodDate, params);
 }
 config(en_default());
+var zod_default = exports_external;
+var Categories = zod_default.enum([
+  "wallpaper"
+]);
 var ManifestAuthor = object({
   display_name: string2(),
   recurse_id: number2().optional()
@@ -33836,6 +33840,7 @@ var Manifest = object({
   description: string2(),
   visibility: _enum2(["public", "internal", "private"]),
   version: ZodSemverUnbranded.optional(),
+  categories: array(Categories).optional().default([]),
   authors: union([ManifestAuthor, array(ManifestAuthor).min(1)]),
   dependencies: array(ManifestDependency).optional()
 });
@@ -33855,6 +33860,7 @@ var GameVersionResponse = exports_external.object({
   version: exports_external.string(),
   authors: exports_external.array(GameAuthorResponse),
   dependencies: exports_external.array(GameDependencyResponse),
+  categories: exports_external.array(Categories),
   contents: exports_external.object({
     url: exports_external.string(),
     expires: exports_external.number()

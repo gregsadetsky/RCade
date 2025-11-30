@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Categories } from "./categories";
 
 export const GameAuthorResponse = z.object({
   display_name: z.string(),
@@ -17,6 +18,7 @@ export const GameVersionResponse = z.object({
   version: z.string(),
   authors: z.array(GameAuthorResponse),
   dependencies: z.array(GameDependencyResponse),
+  categories: z.array(Categories),
   contents: z.object({
     url: z.string(),
     expires: z.number(),

@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { Categories } from "../categories";
 
 export const ManifestAuthor = z.object({
     display_name: z.string(),
@@ -30,6 +31,7 @@ export const Manifest = z.object({
     description: z.string(),
     visibility: z.enum(["public", "internal", "private"]),
     version: ZodSemverUnbranded.optional(),
+    categories: z.array(Categories).optional().default([]),
     authors: z.union([ManifestAuthor, z.array(ManifestAuthor).min(1)]),
     dependencies: z.array(ManifestDependency).optional(),
 });

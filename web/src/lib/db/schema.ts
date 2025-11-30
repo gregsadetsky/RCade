@@ -1,6 +1,14 @@
 import { relations } from 'drizzle-orm';
 import { integer, numeric, sqliteTable, text, unique, foreignKey } from 'drizzle-orm/sqlite-core';
 
+/// Categories
+
+export const categories = sqliteTable('categories', {
+    id: text('id').primaryKey(),
+    name: text('name').notNull().unique(),
+    description: text('description'),
+});
+
 /// Games
 
 export const games = sqliteTable('games', {
@@ -19,6 +27,18 @@ export const gameVersions = sqliteTable('game_versions', {
     version: text("version").notNull(),
 }, (t) => [
     unique().on(t.gameId, t.version),
+]);
+
+export const gameVersionCategories = sqliteTable('game_version_categories', {
+    gameId: text("game_id").notNull(),
+    gameVersion: text("game_version").notNull(),
+    categoryId: text("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+}, (t) => [
+    foreignKey({
+        columns: [t.gameId, t.gameVersion],
+        foreignColumns: [gameVersions.gameId, gameVersions.version],
+    }).onDelete("cascade"),
+    unique().on(t.gameId, t.gameVersion, t.categoryId),
 ]);
 
 export const gameDependencies = sqliteTable('game_dependencies', {
@@ -45,8 +65,23 @@ export const gameAuthors = sqliteTable('game_authors', {
     }).onDelete("cascade"),
 ]);
 
+export const categoriesRelations = relations(categories, ({ many }) => ({
+    gameVersionCategories: many(gameVersionCategories),
+}));
+
 export const gamesRelations = relations(games, ({ many }) => ({
     versions: many(gameVersions),
+}));
+
+export const gameVersionCategoriesRelations = relations(gameVersionCategories, ({ one }) => ({
+    gameVersion: one(gameVersions, {
+        fields: [gameVersionCategories.gameId, gameVersionCategories.gameVersion],
+        references: [gameVersions.gameId, gameVersions.version],
+    }),
+    category: one(categories, {
+        fields: [gameVersionCategories.categoryId],
+        references: [categories.id],
+    }),
 }));
 
 export const gameAuthorsRelations = relations(gameAuthors, ({ one }) => ({
@@ -66,6 +101,7 @@ export const gameDependenciesRelations = relations(gameDependencies, ({ one }) =
 export const gameVersionsRelations = relations(gameVersions, ({ many, one }) => ({
     authors: many(gameAuthors),
     dependencies: many(gameDependencies),
+    categories: many(gameVersionCategories),
     game: one(games, {
         fields: [gameVersions.gameId],
         references: [games.id],

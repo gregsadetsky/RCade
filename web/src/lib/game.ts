@@ -1,6 +1,6 @@
-import { eq, type InferSelectModel } from "drizzle-orm";
+import { eq, inArray, type InferSelectModel } from "drizzle-orm";
 import { getDb } from "./db";
-import { gameAuthors, gameDependencies, games, gameVersions } from "./db/schema";
+import { categories, gameAuthors, gameDependencies, games, gameVersionCategories, gameVersions } from "./db/schema";
 import type { GithubOIDCClaims } from "./auth/github";
 import * as z from "zod";
 import { GameManifest } from "@rcade/api";
@@ -27,12 +27,12 @@ const S3 = new S3Client({
 
 export class Game {
     public static async all(): Promise<Game[]> {
-        return (await getDb().query.games.findMany({ with: { versions: { with: { authors: true, dependencies: true } } } }))
+        return (await getDb().query.games.findMany({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } } } } } }))
             .map(game => new Game(game));
     }
 
     public static async byId(id: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true } } }, where: eq(games.id, id) });
+        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } } } } }, where: eq(games.id, id) });
 
         if (v === undefined) {
             return undefined;
@@ -42,7 +42,7 @@ export class Game {
     }
 
     public static async byName(name: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true } } }, where: eq(games.name, name) });
+        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } } } } }, where: eq(games.name, name) });
 
         if (v === undefined) {
             return undefined;
@@ -71,6 +71,7 @@ export class Game {
         versions: (InferSelectModel<typeof gameVersions> & {
             authors: InferSelectModel<typeof gameAuthors>[],
             dependencies: InferSelectModel<typeof gameDependencies>[],
+            categories: (InferSelectModel<typeof gameVersionCategories> & { category: InferSelectModel<typeof categories> })[],
         })[]
     }) { }
 
@@ -97,6 +98,39 @@ export class Game {
             display_name: author.display_name,
             recurse_id: author.recurse_id
         })));
+
+        if (manifest.categories && manifest.categories.length > 0) {
+            // First, fetch the category IDs from the database
+            const categoryRecords = await getDb()
+                .select()
+                .from(categories)
+                .where(inArray(categories.name, manifest.categories));
+
+            // Create a map of category names to IDs for quick lookup
+            const categoryMap = new Map(
+                categoryRecords.map(cat => [cat.name, cat.id])
+            );
+
+            // Filter out any categories that don't exist in the database
+            const validCategories = manifest.categories
+                .filter(name => categoryMap.has(name))
+                .map(name => ({
+                    gameId: this.data.id,
+                    gameVersion: version,
+                    categoryId: categoryMap.get(name)!
+                }));
+
+            // Insert the valid categories
+            if (validCategories.length > 0) {
+                await getDb().insert(gameVersionCategories).values(validCategories);
+            }
+
+            // Optional: Log or handle invalid categories
+            const invalidCategories = manifest.categories.filter(name => !categoryMap.has(name));
+            if (invalidCategories.length > 0) {
+                console.warn(`Invalid categories found: ${invalidCategories.join(', ')}`);
+            }
+        }
 
         if (manifest.dependencies && manifest.dependencies.length > 0) {
             await getDb().insert(gameDependencies).values(manifest.dependencies.map(dependency => ({
@@ -155,6 +189,7 @@ export class Game {
                 version: version.version,
                 authors: version.authors.map(v => ({ display_name: v.display_name, recurse_id: v.recurse_id })),
                 dependencies: version.dependencies.map(v => ({ name: v.dependencyName, version: v.dependencyVersion })),
+                categories: version.categories.map(v => v.category.name),
                 ...r2Key,
             }
         }))).filter(v => v !== undefined);
