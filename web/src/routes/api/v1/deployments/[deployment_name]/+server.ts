@@ -191,6 +191,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
                 fullname: false
             });
 
+            // throw new Error(`primary branch: `)
+
             const createRepoResponse = await fetch('https://api.github.com/orgs/rcade-community/repos', {
                 method: 'POST',
                 headers: {
@@ -259,7 +261,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
             });
 
             // 422 status means repo already exists, which is fine
-            if (!createRepoResponse.ok) {
+            if (!changeDefaultBranchResponse.ok) {
                 throw new Error(`Failed to change default branch: ${await createRepoResponse.text()}`);
             }
         } catch (error) {
