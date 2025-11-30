@@ -249,7 +249,7 @@ async function startGameServer(gameId: string, version: string, controller: Abor
 const fullscreen = !isDev;
 
 function createWindow(): void {
-  process.env.STARTUP_CONFIG = JSON.stringify(args);
+  process.env.STARTUP_CONFIG = JSON.stringify({ ...args, isDev });
 
   const mainWindow = new BrowserWindow({
     fullscreen: fullscreen,

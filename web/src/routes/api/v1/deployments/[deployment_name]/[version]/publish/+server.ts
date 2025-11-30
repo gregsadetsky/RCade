@@ -1,6 +1,7 @@
 import { GithubOIDCValidator } from "$lib/auth/github";
 import { Game } from "$lib/game";
 import { RecurseAPIError } from "$lib/recurse";
+import { invalidateGamesCache } from "$lib/cache";
 import type { RequestHandler } from "@sveltejs/kit";
 import { ZodError } from "zod";
 import * as jose from "jose";
@@ -14,7 +15,7 @@ function jsonResponse(body: object, status: number): Response {
     });
 }
 
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, platform }) => {
     const deploymentName = params.deployment_name ?? "";
     const version = params.version ?? "";
 
@@ -78,6 +79,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
         if (!updated) {
             return jsonResponse({ error: 'Failed to update version status' }, 500);
         }
+
+        await invalidateGamesCache(platform?.caches);
 
         return jsonResponse({ success: true, name: deploymentName, version, status: "published" }, 200);
     } catch (error) {

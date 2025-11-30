@@ -3,6 +3,8 @@
   import type { GameInfo } from '../../shared/types';
   import { navigateToGame, getLastPlayedGame } from '../router.svelte';
 
+  const isDev = window.rcade?.getArgs()?.isDev ?? false;
+
   let games = $state<GameInfo[]>([]);
   let currentIndex = $state(0);
   let fetchInterval: ReturnType<typeof setInterval> | null = null;
@@ -62,7 +64,9 @@
 
   onMount(() => {
     fetchGames();
-    fetchInterval = setInterval(fetchGames, 5000);
+    if (!isDev) {
+      fetchInterval = setInterval(fetchGames, 5000);
+    }
     window.addEventListener('keydown', handleKeydown);
   });
 

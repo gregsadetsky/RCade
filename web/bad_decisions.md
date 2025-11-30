@@ -3,3 +3,5 @@
 - we dont limit file size :(
 - errors are just a string :(
 - nobody will ever use the rc_id field until the cli is not sucky :(
+- we poll every 5 seconds :(
+- cache invalidation happens in handlers, should happen in a wrapper class :(

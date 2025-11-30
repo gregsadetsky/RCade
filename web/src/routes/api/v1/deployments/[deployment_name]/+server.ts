@@ -1,13 +1,13 @@
 import { GithubOIDCValidator } from "$lib/auth/github";
 import { Game } from "$lib/game";
 import { RecurseAPIError } from "$lib/recurse";
+import { invalidateGamesCache } from "$lib/cache";
 import { GameManifest } from "@rcade/api";
 import type { RequestHandler } from "@sveltejs/kit";
 import semver from "semver";
 import { ZodError } from "zod";
 import git from "isomorphic-git";
 import http from 'isomorphic-git/http/web';
-import LightningFS from '@isomorphic-git/lightning-fs';
 import { env } from "$env/dynamic/private";
 import * as jose from 'jose';
 import { createPrivateKey } from "node:crypto";
@@ -87,7 +87,7 @@ function jsonResponse(body: object, status: number): Response {
     });
 }
 
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, platform }) => {
     const deploymentName = params.deployment_name ?? "";
     if (!deploymentName) {
         return jsonResponse({ error: 'Deployment name is required' }, 400);
@@ -270,6 +270,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
         vol.reset();
 
         const { upload_url, expires } = await game.publishVersion(version, manifest);
+
+        await invalidateGamesCache(platform?.caches);
 
         return jsonResponse({ upload_url, expires, version }, 200);
     } catch (error) {
