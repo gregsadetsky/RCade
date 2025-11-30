@@ -34946,7 +34946,11 @@ var Manifest = object({
   version: ZodSemverUnbranded.optional(),
   categories: array(Categories).optional().default([]),
   authors: union([ManifestAuthor, array(ManifestAuthor).min(1)]),
-  dependencies: array(ManifestDependency).optional()
+  dependencies: array(ManifestDependency).optional(),
+  remix_of: object({
+    name: string2().nonempty().regex(/[a-zA-Z0-9_-]*/),
+    version: ZodSemverUnbranded
+  }).optional()
 });
 var import_semver = __toESM2(require_semver2(), 1);
 var GameAuthorResponse = exports_external.object({
@@ -34965,6 +34969,27 @@ var GameVersionResponse = exports_external.object({
   authors: exports_external.array(GameAuthorResponse),
   dependencies: exports_external.array(GameDependencyResponse),
   categories: exports_external.array(Categories),
+  remixOf: exports_external.object({
+    id: exports_external.string(),
+    name: exports_external.string(),
+    git: exports_external.object({
+      ssh: exports_external.string(),
+      https: exports_external.string()
+    }),
+    owner_rc_id: exports_external.string(),
+    version: exports_external.object({
+      displayName: exports_external.string().nullable().optional(),
+      description: exports_external.string(),
+      visibility: exports_external.enum(["public", "internal", "private"]),
+      version: exports_external.string(),
+      remixOf: exports_external.object({
+        id: exports_external.string(),
+        version: exports_external.object({
+          version: exports_external.string()
+        })
+      }).optional()
+    })
+  }).optional(),
   contents: exports_external.object({
     url: exports_external.string(),
     expires: exports_external.number()

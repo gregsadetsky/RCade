@@ -27,12 +27,12 @@ const S3 = new S3Client({
 
 export class Game {
     public static async all(): Promise<Game[]> {
-        return (await getDb().query.games.findMany({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } } } } } }))
+        return (await getDb().query.games.findMany({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } }, remixOf: { with: { game: true } } } } } }))
             .map(game => new Game(game));
     }
 
     public static async byId(id: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } } } } }, where: eq(games.id, id) });
+        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } }, remixOf: { with: { game: true } } } } }, where: eq(games.id, id) });
 
         if (v === undefined) {
             return undefined;
@@ -42,7 +42,7 @@ export class Game {
     }
 
     public static async byName(name: string): Promise<Game | undefined> {
-        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } } } } }, where: eq(games.name, name) });
+        let v = await getDb().query.games.findFirst({ with: { versions: { with: { authors: true, dependencies: true, categories: { with: { category: true } }, remixOf: { with: { game: true } } } } }, where: eq(games.name, name) });
 
         if (v === undefined) {
             return undefined;
@@ -71,6 +71,9 @@ export class Game {
         versions: (InferSelectModel<typeof gameVersions> & {
             authors: InferSelectModel<typeof gameAuthors>[],
             dependencies: InferSelectModel<typeof gameDependencies>[],
+            remixOf: (InferSelectModel<typeof gameVersions> & {
+                game: InferSelectModel<typeof games>,
+            }) | null,
             categories: (InferSelectModel<typeof gameVersionCategories> & { category: InferSelectModel<typeof categories> })[],
         })[]
     }) { }
@@ -78,6 +81,24 @@ export class Game {
     public async publishVersion(version: string, manifest: z.infer<typeof GameManifest>): Promise<{ upload_url: string, expires: number }> {
         if (manifest.version !== undefined && manifest.version !== version) {
             throw new Error("Version mismatch");
+        }
+
+        const remixOf = manifest.remix_of;
+        const isFirstVersion = this.data.versions.length === 0;
+
+        if (!isFirstVersion) {
+            // Validate remix consistency with existing versions
+            await this.validateRemixConsistency(remixOf);
+        }
+
+        let remixOfGameId: string | null = null;
+        let remixOfVersion: string | null = null;
+
+        if (remixOf) {
+            // Parse and validate the remix_of reference
+            const remixData = await this.parseAndValidateRemix(manifest, remixOf, isFirstVersion);
+            remixOfGameId = remixData.gameId;
+            remixOfVersion = remixData.version;
         }
 
         await getDb().insert(gameVersions).values({
@@ -88,6 +109,9 @@ export class Game {
             description: manifest.description,
             visibility: manifest.visibility,
             status: "pending",
+
+            remixOfGameId,
+            remixOfVersion,
         });
 
         const authors = Array.isArray(manifest.authors) ? manifest.authors : [manifest.authors];
@@ -152,6 +176,141 @@ export class Game {
         return { upload_url, expires: (Date.now() + 3600) }
     }
 
+    private async validateRemixConsistency(remixOf: {
+        name: string;
+        version: string;
+    } | undefined): Promise<void> {
+        // Get the most recent version to check remix consistency
+        const existingVersions = this.data.versions;
+
+        if (existingVersions.length === 0) {
+            return; // First version, no validation needed
+        }
+
+        // Check if any existing version has a remix
+        const existingRemix = existingVersions.find(v => v.remixOf !== null);
+
+        if (!remixOf && existingRemix) {
+            // Previous versions remixed something, but this one doesn't
+            throw new Error(
+                `Cannot publish version without remix: previous versions remix game '${existingRemix.remixOf!.game.name}@${existingRemix.remixOf!.version}'. ` +
+                `All versions must remix the same game.`
+            );
+        }
+
+        if (remixOf && !existingRemix) {
+            // This version remixes something, but previous versions didn't
+            throw new Error(
+                `Cannot publish version with remix: previous versions do not remix any game. ` +
+                `All versions must be consistent (either all remix or none remix).`
+            );
+        }
+
+        if (remixOf && existingRemix) {
+            // Both remix something - they must remix the same game
+            const existingRemixGameName = existingRemix.remixOf!.game.name;
+
+            if (remixOf.name !== existingRemixGameName) {
+                throw new Error(
+                    `Cannot change remix target: previous versions remix game '${existingRemix.remixOf!.game.name}@${existingRemix.remixOf!.version}'. ` +
+                    `All versions must remix the same game.`
+                );
+            }
+        }
+    }
+
+    private async parseAndValidateRemix(
+        self: z.infer<typeof GameManifest>,
+        remixOf: {
+            name: string;
+            version: string;
+        },
+        isFirstVersion: boolean
+    ): Promise<{ gameId: string, version: string }> {
+        const targetGame = await getDb()
+            .select()
+            .from(games)
+            .where(eq(games.name, remixOf.name))
+            .limit(1);
+
+        if (targetGame.length === 0) {
+            throw new Error(
+                `Remix target game not found: no game with name '${remixOf.name}' exists`
+            );
+        }
+
+        const gameId = targetGame[0].id;
+
+        // Verify the specific version exists
+        const remixTarget = await getDb().query.gameVersions.findFirst({
+            where: (gameVersions, { and, eq }) =>
+                and(
+                    eq(gameVersions.gameId, gameId),
+                    eq(gameVersions.version, remixOf.version)
+                ),
+            with: {
+                game: true
+            }
+        });
+
+        if (remixTarget == undefined) {
+            throw new Error(
+                `Remix target not found: game '${remixOf.name}' version '${remixOf.version}' does not exist`
+            );
+        }
+
+        if (remixTarget.status !== "published") {
+            throw new Error(
+                `Cannot remix unpublished version`
+            );
+        }
+
+        if (remixTarget.visibility === "private") {
+            if (self.visibility !== "private") {
+                throw new Error(
+                    `Remix visibility must be <= target visibility. In this case, the target has visibility 'private', so your remix must be 'private'`
+                );
+            }
+
+            if (this.data.owner_rc_id !== remixTarget.game.owner_rc_id) {
+                throw new Error(
+                    `Cannot remix an private game owned by somebody else.`
+                );
+            }
+        }
+
+        if (remixTarget.visibility === "internal") {
+            if (self.visibility === "public") {
+                throw new Error(
+                    `Remix visibility must be <= target visibility. In this case, the target has visibility 'private', so your remix must be 'private' | 'internal'`
+                );
+            }
+        }
+
+        // If not the first version, validate version progression
+        if (!isFirstVersion) {
+            const existingVersionsWithRemix = this.data.versions.filter(v => v.remixOf !== null);
+
+            if (existingVersionsWithRemix.length > 0) {
+                // Find the latest remixed version
+                const latestRemixedVersion = existingVersionsWithRemix
+                    .map(v => v.remixOf!.version)
+                    .sort((a, b) => semver.rcompare(a, b))[0];
+
+                // Validate that the new remix version is >= the latest remixed version
+                if (semver.lt(remixOf.version, latestRemixedVersion)) {
+                    throw new Error(
+                        `Cannot remix older version: attempting to remix version '${remixOf.version}', ` +
+                        `but previous versions remix up to '${latestRemixedVersion}'. ` +
+                        `New versions must remix the same or newer version.`
+                    );
+                }
+            }
+        }
+
+        return { gameId, version: remixOf.version };
+    }
+
     public gitUrl(kind: GitUrlKind = GitUrlKind.Https) {
         switch (kind) {
             case GitUrlKind.Https: return `https://github.com/${this.data.github_repo}`
@@ -195,6 +354,27 @@ export class Game {
                 authors: version.authors.map(v => ({ display_name: v.display_name, recurse_id: v.recurse_id })),
                 dependencies: version.dependencies.map(v => ({ name: v.dependencyName, version: v.dependencyVersion })),
                 categories: version.categories.map(v => v.category.name),
+                remixOf: version.remixOf == null ? undefined : {
+                    id: version.remixOf.game.id,
+                    name: version.remixOf.game.name,
+                    git: {
+                        ssh: `git@github.com:${version.remixOf.game.github_repo}.git`,
+                        https: `https://github.com/${version.remixOf.game.github_repo}`,
+                    },
+                    owner_rc_id: version.remixOf.game.owner_rc_id,
+                    version: {
+                        displayName: version.remixOf.displayName,
+                        description: version.remixOf.description,
+                        visibility: version.remixOf.visibility,
+                        version: version.remixOf.version,
+                        remixOf: version.remixOf.remixOfGameId == null ? undefined : {
+                            id: version.remixOf.remixOfGameId,
+                            version: {
+                                version: version.remixOf.remixOfVersion!,
+                            }
+                        }
+                    },
+                },
                 ...r2Key,
             }
         }))).filter(v => v !== undefined);
@@ -207,8 +387,8 @@ export class Game {
             id: this.data.id,
             name: this.data.name,
             git: {
-                ssh: this.gitUrl(GitUrlKind.Ssh),
-                https: this.gitUrl(GitUrlKind.Https),
+                ssh: `git@github.com:${this.data.github_repo}.git`,
+                https: `https://github.com/${this.data.github_repo}`,
             },
             owner_rc_id: this.data.owner_rc_id,
             versions,

@@ -34,6 +34,13 @@ export const Manifest = z.object({
     categories: z.array(Categories).optional().default([]),
     authors: z.union([ManifestAuthor, z.array(ManifestAuthor).min(1)]),
     dependencies: z.array(ManifestDependency).optional(),
+    remix_of: z.object({
+        name: z
+            .string()
+            .nonempty()
+            .regex(/[a-zA-Z0-9_-]*/),
+        version: ZodSemverUnbranded,
+    }).optional(),
 });
 
 export type Manifest = z.infer<typeof Manifest>;

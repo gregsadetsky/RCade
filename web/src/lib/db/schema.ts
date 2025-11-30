@@ -25,9 +25,16 @@ export const gameVersions = sqliteTable('game_versions', {
     description: text("description").notNull(),
     visibility: text("visibility", { enum: ["public", "internal", "private"] }).notNull(),
     version: text("version").notNull(),
-    status: text("status", { enum: ["pending", "published"]}).notNull(),
+    status: text("status", { enum: ["pending", "published"] }).notNull(),
+
+    remixOfGameId: text("remix_of_game_id"),
+    remixOfVersion: text("remix_of_version"),
 }, (t) => [
     unique().on(t.gameId, t.version),
+    foreignKey({
+        columns: [t.remixOfGameId, t.remixOfVersion],
+        foreignColumns: [t.gameId, t.version],
+    }).onDelete("restrict"),
 ]);
 
 export const gameVersionCategories = sqliteTable('game_version_categories', {
@@ -106,6 +113,14 @@ export const gameVersionsRelations = relations(gameVersions, ({ many, one }) => 
     game: one(games, {
         fields: [gameVersions.gameId],
         references: [games.id],
+    }),
+    remixOf: one(gameVersions, {
+        fields: [gameVersions.remixOfGameId, gameVersions.remixOfVersion],
+        references: [gameVersions.gameId, gameVersions.version],
+        relationName: "remix",
+    }),
+    remixes: many(gameVersions, {
+        relationName: "remix",
     }),
 }));
 
