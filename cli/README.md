@@ -48,7 +48,7 @@ You'll be asked for:
 
 ### Remix an Existing Game
 
-Want to build on a game from the [rcade-community](https://github.com/recurse-center/rcade-community) archive? Use the remix command:
+Want to build on a game from the [rcade-community](https://github.com/rcade-community) archive? Use the remix command:
 
 ```bash
 npx rcade@latest remix <game-name>
