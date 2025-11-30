@@ -56,6 +56,19 @@ npx rcade@latest remix <game-name>
 
 This clones the game and sets it up as a new project for you to modify.
 
+### Developing on a Fork
+
+If you fork an existing RCade game repository on GitHub, you'll need to rename your game to avoid conflicts with the original. Each game name can only be registered to one repository.
+
+Edit `rcade.manifest.json` and change the `name` field:
+
+```json
+{
+  "name": "original-game-yourname",
+  ...
+}
+```
+
 ### Local Development with the Cabinet
 
 Test your game in the actual rcade cabinet environment:

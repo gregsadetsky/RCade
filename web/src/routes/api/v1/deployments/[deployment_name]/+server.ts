@@ -152,8 +152,11 @@ export const POST: RequestHandler = async ({ params, request, platform }) => {
     let game = await Game.byName(deploymentName);
 
     if (game !== undefined && !game.matchesRepo(auth.repository)) {
+        const owner = auth.repository_owner;
         return jsonResponse({
-            error: `Game '${deploymentName}' is already registered to a different repository (${auth.repository})`
+            error: `Game '${deploymentName}' is already registered to a different repository. ` +
+                   `If you're developing on a fork, rename your game to '${deploymentName}-${owner}' ` +
+                   `in rcade.manifest.json`
         }, 403);
     }
 
