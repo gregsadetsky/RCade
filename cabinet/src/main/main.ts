@@ -40,6 +40,9 @@ const apiClient = Client.new();
 // Cache directory for game files
 const cacheDir = path.join(app.getPath('userData'), 'game-cache');
 
+// Path for cached game list (for offline support)
+const gamesListCachePath = path.join(app.getPath('userData'), 'games-list.json');
+
 // Track running game servers
 const gameServers = new Map<string, { server?: ReturnType<typeof serve>; url: string; controller: AbortController }>();
 
@@ -49,6 +52,19 @@ function getCachePath(gameId: string, version: string): string {
 
 async function ensureCacheDir(): Promise<void> {
   await fs.mkdir(cacheDir, { recursive: true });
+}
+
+async function saveGamesListCache(games: GameInfo[]): Promise<void> {
+  await fs.writeFile(gamesListCachePath, JSON.stringify(games, null, 2));
+}
+
+async function loadGamesListCache(): Promise<GameInfo[] | null> {
+  try {
+    const data = await fs.readFile(gamesListCachePath, 'utf-8');
+    return JSON.parse(data) as GameInfo[];
+  } catch {
+    return null;
+  }
 }
 
 async function isGameCached(gameId: string, version: string): Promise<boolean> {
@@ -317,17 +333,43 @@ app.whenReady().then(async () => {
   }
 
   ipcMain.handle('get-games', async (): Promise<GameInfo[]> => {
-    const games = await apiClient.getAllGames();
+    try {
+      const games = await apiClient.getAllGames();
 
-    return games.map((game: Game) => ({
-      id: game.id(),
-      name: game.name(),
-      displayName: game.latest().displayName(),
-      latestVersion: game.latest().version(),
-      contentUrl: game.latest().contentUrl(),
-      authors: game.latest().authors().map(a => ({ display_name: a.display_name })),
-      dependencies: game.latest().dependencies(),
-    }));
+      const gameInfos = games.map((game: Game) => ({
+        id: game.id(),
+        name: game.name(),
+        displayName: game.latest().displayName(),
+        latestVersion: game.latest().version(),
+        contentUrl: game.latest().contentUrl(),
+        authors: game.latest().authors().map(a => ({ display_name: a.display_name })),
+        dependencies: game.latest().dependencies(),
+      }));
+
+      // cache the game list for offline use
+      await saveGamesListCache(gameInfos);
+
+      return gameInfos;
+    } catch (error) {
+      // if api fails (offline), try to load from cache
+      console.log('[Games] API fetch failed, trying cached list:', error);
+      const cachedGames = await loadGamesListCache();
+      if (cachedGames) {
+        // show to only games that are actually downloaded if offline
+        const downloadedGames = await Promise.all(
+          cachedGames.map(async (game) => {
+            if (game.id && game.latestVersion && await isGameCached(game.id, game.latestVersion)) {
+              return game;
+            }
+            return null;
+          })
+        );
+        const availableGames = downloadedGames.filter((g): g is GameInfo => g !== null);
+        console.log(`[Games] Loaded ${availableGames.length} downloaded games from cache (${cachedGames.length} total cached)`);
+        return availableGames;
+      }
+      throw error;
+    }
   });
 
   ipcMain.handle('load-game', async (event, game: GameInfo): Promise<Omit<LoadGameResult, "pluginPorts">> => {
