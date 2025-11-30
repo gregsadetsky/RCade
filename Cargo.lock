@@ -79,19 +79,17 @@ dependencies = [
 
 [[package]]
 name = "rcade-plugin-input-classic"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "js-sys",
- "rcade-sdk 0.1.0",
+ "rcade-sdk 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasm-bindgen",
  "web-sys",
 ]
 
 [[package]]
 name = "rcade-sdk"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb6cfeb656fb4b1fda5381220046a8278fee8d51c03dc5f1fd139bac88b172f6"
+version = "0.2.0"
 dependencies = [
  "hashbrown",
  "js-sys",
@@ -103,6 +101,8 @@ dependencies = [
 [[package]]
 name = "rcade-sdk"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "013ca504d5fc06b575e8a3ee72c95bfba6371d2d25fd33ca1bc2cdf51cc5afe6"
 dependencies = [
  "hashbrown",
  "js-sys",
