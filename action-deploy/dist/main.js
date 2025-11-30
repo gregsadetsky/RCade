@@ -33821,7 +33821,7 @@ function date4(params) {
 config(en_default());
 var zod_default = exports_external;
 var Categories = zod_default.enum([
-  "wallpaper"
+  "screensaver"
 ]);
 var ManifestAuthor = object({
   display_name: string2(),
