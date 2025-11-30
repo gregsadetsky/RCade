@@ -5,6 +5,7 @@ import packageJson from "./package.json";
 import { createCommand } from "./src/create";
 import { devCommand } from "./src/dev";
 import { cacheCommand } from "./src/cache";
+import { remixCommand } from "./src/remix";
 
 const program = new Command();
 
@@ -16,5 +17,6 @@ program
 program.addCommand(createCommand);
 program.addCommand(devCommand);
 program.addCommand(cacheCommand);
+program.addCommand(remixCommand);
 
 program.parse();
