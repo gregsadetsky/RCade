@@ -12,56 +12,16 @@
   const PORTS_TAKEN = Symbol();
 
   let gameUrl = $state<string | null>(null);
-  let gamePluginPorts:
-    | {
-        [name: string]: { [version: string]: MessagePort };
-      }
-    | typeof PORTS_TAKEN = {};
   let loading = $state(true);
   let error = $state<string | null>(null);
 
   async function loadGame() {
     try {
       if (window.rcade) {
-        const pluginPortsPromise = new Promise<
-          Record<string, Record<string, MessagePort>>
-        >((resolve) => {
-          window.addEventListener(
-            "message",
-            (event) => {
-              if (event.data.type === "plugin-ports-ready") {
-                const { structure } = event.data;
-                const ports = event.ports;
-
-                const mappedPorts: Record<
-                  string,
-                  Record<string, MessagePort>
-                > = {};
-
-                for (const [pluginName, versions] of Object.entries(
-                  structure,
-                )) {
-                  mappedPorts[pluginName] = {};
-                  for (const [version, index] of Object.entries(
-                    versions as any,
-                  )) {
-                    mappedPorts[pluginName][version] = ports[index as number];
-                  }
-                }
-
-                resolve(mappedPorts);
-              }
-            },
-            { once: true },
-          );
-        });
-
-        // TODO: This can cause a leak with HMR. Shouldn't happen in prod - but we don't unload the game on unmount.
+        await window.rcade.unloadGame(game.id, game.name, game.latestVersion);
         const { url } = await window.rcade.loadGame($state.snapshot(game));
-        const pluginPorts = await pluginPortsPromise;
 
         gameUrl = url;
-        gamePluginPorts = pluginPorts;
       }
     } catch (e) {
       error = e instanceof Error ? e.message : "Failed to load game";
@@ -93,41 +53,74 @@
 
   let frame: HTMLIFrameElement | undefined = $state(undefined);
 
-  async function request_plugin_channels() {
-    if (gamePluginPorts === PORTS_TAKEN) {
-      await window.rcade.unloadGame(game.id, game.name, game.latestVersion);
-      document.location.reload();
-      return;
-    }
+  setInterval(() => {
+    frame?.focus();
+  }, 100);
 
-    for (let name of Object.keys(gamePluginPorts)) {
-      for (let version of Object.keys(gamePluginPorts[name])) {
-        const message = {
-          type: "plugin_channel_created",
-          channel: {
-            name,
-            version,
-          },
-        };
-
-        const port = gamePluginPorts[name][version];
-
-        frame?.contentWindow?.postMessage(message, "*", [port]);
-      }
-    }
-
-    gamePluginPorts = PORTS_TAKEN;
-  }
+  const receivedPorts = new Map<string, MessagePort>();
 
   onMount(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
+      // Handle ports transferred from preload script
+      if (event.data?.type === "plugin-port-transfer") {
+        const { nonce } = event.data;
+        const port = event.ports[0];
+        if (port) {
+          receivedPorts.set(nonce, port);
+        }
+        return;
+      }
+
       // Security check: verify the message is from the iframe
       if (event.source !== frame?.contentWindow) {
         return;
       }
 
-      if (event.data === "request_plugin_channels") {
-        request_plugin_channels();
+      if (event.data.type === "acquire_plugin_channel") {
+        try {
+          const { nonce, name, version } = await window.rcade.acquirePlugin(
+            event.data.channel.name,
+            event.data.channel.version,
+          );
+
+          // Wait for the port to arrive via postMessage
+          // Poll for a short time in case there's a race condition
+          let port: MessagePort | undefined;
+          const maxAttempts = 50; // 500ms total
+          for (let i = 0; i < maxAttempts; i++) {
+            port = receivedPorts.get(nonce);
+            if (port) {
+              receivedPorts.delete(nonce);
+              break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+
+          if (port === undefined) {
+            throw new Error("Port never received");
+          }
+
+          frame.contentWindow?.postMessage(
+            {
+              type: "plugin_channel",
+              nonce: event.data.nonce,
+              channel: { name, version },
+            },
+            "*",
+            [port],
+          );
+        } catch (err) {
+          console.log(err);
+
+          frame.contentWindow?.postMessage(
+            {
+              type: "plugin_channel",
+              nonce: event.data.nonce,
+              error: { message: String(err) },
+            },
+            "*",
+          );
+        }
       }
     };
 
