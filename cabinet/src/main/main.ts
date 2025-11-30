@@ -251,30 +251,32 @@ function createWindow(): void {
   });
 
   if (isDev) {
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.webContents.openDevTools({ mode: "detach" });
   }
 
   // deny all permissions for sandboxed iframe content
-  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(false);
-  });
+  session.defaultSession.setPermissionRequestHandler(
+    (_webContents, _permission, callback) => {
+      callback(false);
+    }
+  );
 
-  // Capture ShiftLeft even when iframe has focus
-  mainWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.type === 'keyDown' && input.code === 'ShiftLeft' && !args.noExit) {
-      mainWindow.webContents.send('menu-key-pressed');
+  // capture menu button even when iframe has focus
+  mainWindow.webContents.on("before-input-event", (_event, input) => {
+    if (input.type === "keyDown" && input.code === "Escape" && !args.noExit) {
+      mainWindow.webContents.send("menu-key-pressed");
     }
   });
 
-  mainWindow.webContents.on('did-finish-load', () => {
+  mainWindow.webContents.on("did-finish-load", () => {
     mainWindow.webContents.setZoomFactor(scaleFactor);
   });
 
   if (!app.isPackaged) {
     // Use Vite dev server only when running from source
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL("http://localhost:5173");
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
 
