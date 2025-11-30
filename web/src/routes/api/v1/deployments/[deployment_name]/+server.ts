@@ -184,99 +184,101 @@ export const POST: RequestHandler = async ({ params, request, platform }) => {
             }
         }
 
-        const dir = '/repo';
+        // TODO: Temporarily disabled community GitHub clone/push due to timeouts on CI.
+        // Need to move to a worker model.
+        // const dir = '/repo';
 
-        try {
-            await git.clone({
-                fs,
-                http,
-                dir,
-                url: `https://github.com/${auth.repository}`,
-            });
+        // try {
+        //     await git.clone({
+        //         fs,
+        //         http,
+        //         dir,
+        //         url: `https://github.com/${auth.repository}`,
+        //     });
 
-            const primaryBranch = await git.currentBranch({
-                fs,
-                dir,
-                fullname: false
-            });
+        //     const primaryBranch = await git.currentBranch({
+        //         fs,
+        //         dir,
+        //         fullname: false
+        //     });
 
-            const createRepoResponse = await fetch('https://api.github.com/orgs/rcade-community/repos', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${await githubToken()}`,
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                    'User-Agent': "RCade Community"
-                },
-                body: JSON.stringify({
-                    name: deploymentName,
-                    private: false, // or true if you want it private
-                    auto_init: false, // important: don't initialize with README
-                }),
-            });
+        //     const createRepoResponse = await fetch('https://api.github.com/orgs/rcade-community/repos', {
+        //         method: 'POST',
+        //         headers: {
+        //             'Authorization': `Bearer ${await githubToken()}`,
+        //             'Accept': 'application/vnd.github+json',
+        //             'X-GitHub-Api-Version': '2022-11-28',
+        //             'User-Agent': "RCade Community"
+        //         },
+        //         body: JSON.stringify({
+        //             name: deploymentName,
+        //             private: false, // or true if you want it private
+        //             auto_init: false, // important: don't initialize with README
+        //         }),
+        //     });
 
-            // 422 status means repo already exists, which is fine
-            if (!createRepoResponse.ok && createRepoResponse.status !== 422) {
-                throw new Error(`Failed to create repository: ${await createRepoResponse.text()}`);
-            }
+        //     // 422 status means repo already exists, which is fine
+        //     if (!createRepoResponse.ok && createRepoResponse.status !== 422) {
+        //         throw new Error(`Failed to create repository: ${await createRepoResponse.text()}`);
+        //     }
 
-            await git.addRemote({
-                fs,
-                dir,
-                remote: 'rcade-community',
-                url: `https://github.com/rcade-community/${deploymentName}`,
-            });
+        //     await git.addRemote({
+        //         fs,
+        //         dir,
+        //         remote: 'rcade-community',
+        //         url: `https://github.com/rcade-community/${deploymentName}`,
+        //     });
 
-            const branches = await git.listBranches({ fs, dir });
+        //     const branches = await git.listBranches({ fs, dir });
 
-            for (const branch of branches.filter(b => b !== 'HEAD')) {
-                const new_branch = `${version}/${branch}`
+        //     for (const branch of branches.filter(b => b !== 'HEAD')) {
+        //         const new_branch = `${version}/${branch}`
 
-                await git.renameBranch({
-                    fs,
-                    dir,
-                    oldref: branch,
-                    ref: new_branch,
-                });
+        //         await git.renameBranch({
+        //             fs,
+        //             dir,
+        //             oldref: branch,
+        //             ref: new_branch,
+        //         });
 
-                const tok = await githubToken();
+        //         const tok = await githubToken();
 
-                await git.push({
-                    fs,
-                    http,
-                    dir,
-                    remote: 'rcade-community',
-                    ref: new_branch,
-                    onAuth: () => ({
-                        username: 'x-access-token',
-                        password: tok
-                    }),
-                });
-            }
+        //         await git.push({
+        //             fs,
+        //             http,
+        //             dir,
+        //             remote: 'rcade-community',
+        //             ref: new_branch,
+        //             onAuth: () => ({
+        //                 username: 'x-access-token',
+        //                 password: tok
+        //             }),
+        //         });
+        //     }
 
-            const targetBranch = `${version}/${primaryBranch}`;
-            const changeDefaultBranchResponse = await fetch(`https://api.github.com/repos/rcade-community/${deploymentName}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${await githubToken()}`,
-                    'Accept': 'application/vnd.github+json',
-                    'X-GitHub-Api-Version': '2022-11-28',
-                    'User-Agent': "RCade Community"
-                },
-                body: JSON.stringify({
-                    default_branch: targetBranch
-                }),
-            });
+        //     const targetBranch = `${version}/${primaryBranch}`;
+        //     const changeDefaultBranchResponse = await fetch(`https://api.github.com/repos/rcade-community/${deploymentName}`, {
+        //         method: 'PATCH',
+        //         headers: {
+        //             'Authorization': `Bearer ${await githubToken()}`,
+        //             'Accept': 'application/vnd.github+json',
+        //             'X-GitHub-Api-Version': '2022-11-28',
+        //             'User-Agent': "RCade Community"
+        //         },
+        //         body: JSON.stringify({
+        //             default_branch: targetBranch
+        //         }),
+        //         });
 
-            if (!changeDefaultBranchResponse.ok) {
-                const errorText = await changeDefaultBranchResponse.text();
-                throw new Error(`Failed to change default branch: ${errorText}`);
-            }
-        } catch (error) {
-            return jsonResponse({ error: `Failed to clone your repository. ${error}` }, 500);
-        }
+        //     if (!changeDefaultBranchResponse.ok) {
+        //         const errorText = await changeDefaultBranchResponse.text();
+        //         throw new Error(`Failed to change default branch: ${errorText}`);
+        //     }
+        // } catch (error) {
+        //     return jsonResponse({ error: `Failed to clone your repository. ${error}` }, 500);
+        // }
 
-        vol.reset();
+        // vol.reset();
 
         const { upload_url, expires } = await game.publishVersion(version, manifest);
 
