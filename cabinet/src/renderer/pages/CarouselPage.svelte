@@ -49,11 +49,11 @@
   function handleKeydown(event: KeyboardEvent) {
     if (games.length === 0) return;
 
-    if (event.key === 'ArrowRight') {
+    if (event.key === 'd') {
       currentIndex = (currentIndex + 1) % games.length;
-    } else if (event.key === 'ArrowLeft') {
+    } else if (event.key === 'a') {
       currentIndex = (currentIndex - 1 + games.length) % games.length;
-    } else if (event.code === 'ControlLeft' && currentGame) {
+    } else if (event.key === 'f' && currentGame) {
       navigateToGame(currentGame);
     }
   }
