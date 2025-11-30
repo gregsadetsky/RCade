@@ -23,7 +23,9 @@
     "@types/semver": "^7.7.1"
   },
   "dependencies": {
-    "semver": "^7.7.3"
+    "@rcade/input-classic": "workspace:*",
+    "semver": "^7.7.3",
+    "smol-toml": "^1.5.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",

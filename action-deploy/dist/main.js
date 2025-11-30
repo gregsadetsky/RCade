@@ -19615,6 +19615,8 @@ var require_auth2 = __commonJS((exports) => {
 var core3 = __toESM(require_core(), 1);
 
 // ../api/dist/index.js
+import * as fs from "fs";
+import * as path from "path";
 var __create2 = Object.create;
 var __getProtoOf2 = Object.getPrototypeOf;
 var __defProp2 = Object.defineProperty;
@@ -22078,10 +22080,10 @@ function mergeDefs(...defs) {
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path2) {
+  if (!path2)
     return obj;
-  return path.reduce((acc, key) => acc?.[key], obj);
+  return path2.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -22445,11 +22447,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path2, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path2);
     return iss;
   });
 }
@@ -22609,7 +22611,7 @@ function formatError(error, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error2, path = []) => {
+  const processError = (error2, path2 = []) => {
     var _a, _b;
     for (const issue2 of error2.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -22619,7 +22621,7 @@ function treeifyError(error, mapper = (issue2) => issue2.message) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path2, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -22651,8 +22653,8 @@ function treeifyError(error, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
+  const path2 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path2) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -33904,13 +33906,1088 @@ var Manifest2 = object({
     })
   ]))
 });
+var rcade_manifest_default = {
+  kind: "plugin",
+  name: "@rcade/input-classic",
+  description: "The classic input control scheme.",
+  visibility: "public",
+  version: "1.0.0",
+  authors: [
+    {
+      display_name: "Rose Kodsi-Hall",
+      recurse_id: 6834
+    }
+  ],
+  libraries: [
+    {
+      language: "javascript",
+      package: {
+        name: "@rcade/plugin-input-classic",
+        versions: "1.x.x"
+      }
+    },
+    {
+      language: "rust",
+      package: {
+        name: "rcade-plugin-input-classic",
+        versions: "1.x.x"
+      }
+    }
+  ]
+};
+var pluginManifests = [
+  rcade_manifest_default
+];
+var semver2 = __toESM2(require_semver2(), 1);
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+function getLineColFromPtr(string4, ptr) {
+  let lines = string4.slice(0, ptr).split(/\r\n|\n|\r/g);
+  return [lines.length, lines.pop().length + 1];
+}
+function makeCodeBlock(string4, line, column) {
+  let lines = string4.split(/\r\n|\n|\r/g);
+  let codeblock = "";
+  let numberLen = (Math.log10(line + 1) | 0) + 1;
+  for (let i = line - 1;i <= line + 1; i++) {
+    let l = lines[i - 1];
+    if (!l)
+      continue;
+    codeblock += i.toString().padEnd(numberLen, " ");
+    codeblock += ":  ";
+    codeblock += l;
+    codeblock += `
+`;
+    if (i === line) {
+      codeblock += " ".repeat(numberLen + column + 2);
+      codeblock += `^
+`;
+    }
+  }
+  return codeblock;
+}
+
+class TomlError extends Error {
+  line;
+  column;
+  codeblock;
+  constructor(message, options) {
+    const [line, column] = getLineColFromPtr(options.toml, options.ptr);
+    const codeblock = makeCodeBlock(options.toml, line, column);
+    super(`Invalid TOML document: ${message}
+
+${codeblock}`, options);
+    this.line = line;
+    this.column = column;
+    this.codeblock = codeblock;
+  }
+}
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+function isEscaped(str, ptr) {
+  let i = 0;
+  while (str[ptr - ++i] === "\\")
+    ;
+  return --i && i % 2;
+}
+function indexOfNewline(str, start = 0, end = str.length) {
+  let idx = str.indexOf(`
+`, start);
+  if (str[idx - 1] === "\r")
+    idx--;
+  return idx <= end ? idx : -1;
+}
+function skipComment(str, ptr) {
+  for (let i = ptr;i < str.length; i++) {
+    let c = str[i];
+    if (c === `
+`)
+      return i;
+    if (c === "\r" && str[i + 1] === `
+`)
+      return i + 1;
+    if (c < " " && c !== "\t" || c === "") {
+      throw new TomlError("control characters are not allowed in comments", {
+        toml: str,
+        ptr
+      });
+    }
+  }
+  return str.length;
+}
+function skipVoid(str, ptr, banNewLines, banComments) {
+  let c;
+  while ((c = str[ptr]) === " " || c === "\t" || !banNewLines && (c === `
+` || c === "\r" && str[ptr + 1] === `
+`))
+    ptr++;
+  return banComments || c !== "#" ? ptr : skipVoid(str, skipComment(str, ptr), banNewLines);
+}
+function skipUntil(str, ptr, sep, end, banNewLines = false) {
+  if (!end) {
+    ptr = indexOfNewline(str, ptr);
+    return ptr < 0 ? str.length : ptr;
+  }
+  for (let i = ptr;i < str.length; i++) {
+    let c = str[i];
+    if (c === "#") {
+      i = indexOfNewline(str, i);
+    } else if (c === sep) {
+      return i + 1;
+    } else if (c === end || banNewLines && (c === `
+` || c === "\r" && str[i + 1] === `
+`)) {
+      return i;
+    }
+  }
+  throw new TomlError("cannot find end of structure", {
+    toml: str,
+    ptr
+  });
+}
+function getStringEnd(str, seek) {
+  let first = str[seek];
+  let target = first === str[seek + 1] && str[seek + 1] === str[seek + 2] ? str.slice(seek, seek + 3) : first;
+  seek += target.length - 1;
+  do
+    seek = str.indexOf(target, ++seek);
+  while (seek > -1 && first !== "'" && isEscaped(str, seek));
+  if (seek > -1) {
+    seek += target.length;
+    if (target.length > 1) {
+      if (str[seek] === first)
+        seek++;
+      if (str[seek] === first)
+        seek++;
+    }
+  }
+  return seek;
+}
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+var DATE_TIME_RE = /^(\d{4}-\d{2}-\d{2})?[T ]?(?:(\d{2}):\d{2}:\d{2}(?:\.\d+)?)?(Z|[-+]\d{2}:\d{2})?$/i;
+
+class TomlDate extends Date {
+  #hasDate = false;
+  #hasTime = false;
+  #offset = null;
+  constructor(date5) {
+    let hasDate = true;
+    let hasTime = true;
+    let offset = "Z";
+    if (typeof date5 === "string") {
+      let match = date5.match(DATE_TIME_RE);
+      if (match) {
+        if (!match[1]) {
+          hasDate = false;
+          date5 = `0000-01-01T${date5}`;
+        }
+        hasTime = !!match[2];
+        hasTime && date5[10] === " " && (date5 = date5.replace(" ", "T"));
+        if (match[2] && +match[2] > 23) {
+          date5 = "";
+        } else {
+          offset = match[3] || null;
+          date5 = date5.toUpperCase();
+          if (!offset && hasTime)
+            date5 += "Z";
+        }
+      } else {
+        date5 = "";
+      }
+    }
+    super(date5);
+    if (!isNaN(this.getTime())) {
+      this.#hasDate = hasDate;
+      this.#hasTime = hasTime;
+      this.#offset = offset;
+    }
+  }
+  isDateTime() {
+    return this.#hasDate && this.#hasTime;
+  }
+  isLocal() {
+    return !this.#hasDate || !this.#hasTime || !this.#offset;
+  }
+  isDate() {
+    return this.#hasDate && !this.#hasTime;
+  }
+  isTime() {
+    return this.#hasTime && !this.#hasDate;
+  }
+  isValid() {
+    return this.#hasDate || this.#hasTime;
+  }
+  toISOString() {
+    let iso = super.toISOString();
+    if (this.isDate())
+      return iso.slice(0, 10);
+    if (this.isTime())
+      return iso.slice(11, 23);
+    if (this.#offset === null)
+      return iso.slice(0, -1);
+    if (this.#offset === "Z")
+      return iso;
+    let offset = +this.#offset.slice(1, 3) * 60 + +this.#offset.slice(4, 6);
+    offset = this.#offset[0] === "-" ? offset : -offset;
+    let offsetDate = new Date(this.getTime() - offset * 60000);
+    return offsetDate.toISOString().slice(0, -1) + this.#offset;
+  }
+  static wrapAsOffsetDateTime(jsDate, offset = "Z") {
+    let date5 = new TomlDate(jsDate);
+    date5.#offset = offset;
+    return date5;
+  }
+  static wrapAsLocalDateTime(jsDate) {
+    let date5 = new TomlDate(jsDate);
+    date5.#offset = null;
+    return date5;
+  }
+  static wrapAsLocalDate(jsDate) {
+    let date5 = new TomlDate(jsDate);
+    date5.#hasTime = false;
+    date5.#offset = null;
+    return date5;
+  }
+  static wrapAsLocalTime(jsDate) {
+    let date5 = new TomlDate(jsDate);
+    date5.#hasDate = false;
+    date5.#offset = null;
+    return date5;
+  }
+}
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+var INT_REGEX = /^((0x[0-9a-fA-F](_?[0-9a-fA-F])*)|(([+-]|0[ob])?\d(_?\d)*))$/;
+var FLOAT_REGEX = /^[+-]?\d(_?\d)*(\.\d(_?\d)*)?([eE][+-]?\d(_?\d)*)?$/;
+var LEADING_ZERO = /^[+-]?0[0-9_]/;
+var ESCAPE_REGEX = /^[0-9a-f]{4,8}$/i;
+var ESC_MAP = {
+  b: "\b",
+  t: "\t",
+  n: `
+`,
+  f: "\f",
+  r: "\r",
+  '"': '"',
+  "\\": "\\"
+};
+function parseString(str, ptr = 0, endPtr = str.length) {
+  let isLiteral = str[ptr] === "'";
+  let isMultiline = str[ptr++] === str[ptr] && str[ptr] === str[ptr + 1];
+  if (isMultiline) {
+    endPtr -= 2;
+    if (str[ptr += 2] === "\r")
+      ptr++;
+    if (str[ptr] === `
+`)
+      ptr++;
+  }
+  let tmp = 0;
+  let isEscape;
+  let parsed = "";
+  let sliceStart = ptr;
+  while (ptr < endPtr - 1) {
+    let c = str[ptr++];
+    if (c === `
+` || c === "\r" && str[ptr] === `
+`) {
+      if (!isMultiline) {
+        throw new TomlError("newlines are not allowed in strings", {
+          toml: str,
+          ptr: ptr - 1
+        });
+      }
+    } else if (c < " " && c !== "\t" || c === "") {
+      throw new TomlError("control characters are not allowed in strings", {
+        toml: str,
+        ptr: ptr - 1
+      });
+    }
+    if (isEscape) {
+      isEscape = false;
+      if (c === "u" || c === "U") {
+        let code = str.slice(ptr, ptr += c === "u" ? 4 : 8);
+        if (!ESCAPE_REGEX.test(code)) {
+          throw new TomlError("invalid unicode escape", {
+            toml: str,
+            ptr: tmp
+          });
+        }
+        try {
+          parsed += String.fromCodePoint(parseInt(code, 16));
+        } catch {
+          throw new TomlError("invalid unicode escape", {
+            toml: str,
+            ptr: tmp
+          });
+        }
+      } else if (isMultiline && (c === `
+` || c === " " || c === "\t" || c === "\r")) {
+        ptr = skipVoid(str, ptr - 1, true);
+        if (str[ptr] !== `
+` && str[ptr] !== "\r") {
+          throw new TomlError("invalid escape: only line-ending whitespace may be escaped", {
+            toml: str,
+            ptr: tmp
+          });
+        }
+        ptr = skipVoid(str, ptr);
+      } else if (c in ESC_MAP) {
+        parsed += ESC_MAP[c];
+      } else {
+        throw new TomlError("unrecognized escape sequence", {
+          toml: str,
+          ptr: tmp
+        });
+      }
+      sliceStart = ptr;
+    } else if (!isLiteral && c === "\\") {
+      tmp = ptr - 1;
+      isEscape = true;
+      parsed += str.slice(sliceStart, tmp);
+    }
+  }
+  return parsed + str.slice(sliceStart, endPtr - 1);
+}
+function parseValue(value, toml, ptr, integersAsBigInt) {
+  if (value === "true")
+    return true;
+  if (value === "false")
+    return false;
+  if (value === "-inf")
+    return -Infinity;
+  if (value === "inf" || value === "+inf")
+    return Infinity;
+  if (value === "nan" || value === "+nan" || value === "-nan")
+    return NaN;
+  if (value === "-0")
+    return integersAsBigInt ? 0n : 0;
+  let isInt = INT_REGEX.test(value);
+  if (isInt || FLOAT_REGEX.test(value)) {
+    if (LEADING_ZERO.test(value)) {
+      throw new TomlError("leading zeroes are not allowed", {
+        toml,
+        ptr
+      });
+    }
+    value = value.replace(/_/g, "");
+    let numeric = +value;
+    if (isNaN(numeric)) {
+      throw new TomlError("invalid number", {
+        toml,
+        ptr
+      });
+    }
+    if (isInt) {
+      if ((isInt = !Number.isSafeInteger(numeric)) && !integersAsBigInt) {
+        throw new TomlError("integer value cannot be represented losslessly", {
+          toml,
+          ptr
+        });
+      }
+      if (isInt || integersAsBigInt === true)
+        numeric = BigInt(value);
+    }
+    return numeric;
+  }
+  const date5 = new TomlDate(value);
+  if (!date5.isValid()) {
+    throw new TomlError("invalid value", {
+      toml,
+      ptr
+    });
+  }
+  return date5;
+}
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+function sliceAndTrimEndOf(str, startPtr, endPtr, allowNewLines) {
+  let value = str.slice(startPtr, endPtr);
+  let commentIdx = value.indexOf("#");
+  if (commentIdx > -1) {
+    skipComment(str, commentIdx);
+    value = value.slice(0, commentIdx);
+  }
+  let trimmed = value.trimEnd();
+  if (!allowNewLines) {
+    let newlineIdx = value.indexOf(`
+`, trimmed.length);
+    if (newlineIdx > -1) {
+      throw new TomlError("newlines are not allowed in inline tables", {
+        toml: str,
+        ptr: startPtr + newlineIdx
+      });
+    }
+  }
+  return [trimmed, commentIdx];
+}
+function extractValue(str, ptr, end, depth, integersAsBigInt) {
+  if (depth === 0) {
+    throw new TomlError("document contains excessively nested structures. aborting.", {
+      toml: str,
+      ptr
+    });
+  }
+  let c = str[ptr];
+  if (c === "[" || c === "{") {
+    let [value, endPtr2] = c === "[" ? parseArray(str, ptr, depth, integersAsBigInt) : parseInlineTable(str, ptr, depth, integersAsBigInt);
+    let newPtr = end ? skipUntil(str, endPtr2, ",", end) : endPtr2;
+    if (endPtr2 - newPtr && end === "}") {
+      let nextNewLine = indexOfNewline(str, endPtr2, newPtr);
+      if (nextNewLine > -1) {
+        throw new TomlError("newlines are not allowed in inline tables", {
+          toml: str,
+          ptr: nextNewLine
+        });
+      }
+    }
+    return [value, newPtr];
+  }
+  let endPtr;
+  if (c === '"' || c === "'") {
+    endPtr = getStringEnd(str, ptr);
+    let parsed = parseString(str, ptr, endPtr);
+    if (end) {
+      endPtr = skipVoid(str, endPtr, end !== "]");
+      if (str[endPtr] && str[endPtr] !== "," && str[endPtr] !== end && str[endPtr] !== `
+` && str[endPtr] !== "\r") {
+        throw new TomlError("unexpected character encountered", {
+          toml: str,
+          ptr: endPtr
+        });
+      }
+      endPtr += +(str[endPtr] === ",");
+    }
+    return [parsed, endPtr];
+  }
+  endPtr = skipUntil(str, ptr, ",", end);
+  let slice = sliceAndTrimEndOf(str, ptr, endPtr - +(str[endPtr - 1] === ","), end === "]");
+  if (!slice[0]) {
+    throw new TomlError("incomplete key-value declaration: no value specified", {
+      toml: str,
+      ptr
+    });
+  }
+  if (end && slice[1] > -1) {
+    endPtr = skipVoid(str, ptr + slice[1]);
+    endPtr += +(str[endPtr] === ",");
+  }
+  return [
+    parseValue(slice[0], str, ptr, integersAsBigInt),
+    endPtr
+  ];
+}
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+var KEY_PART_RE = /^[a-zA-Z0-9-_]+[ \t]*$/;
+function parseKey(str, ptr, end = "=") {
+  let dot = ptr - 1;
+  let parsed = [];
+  let endPtr = str.indexOf(end, ptr);
+  if (endPtr < 0) {
+    throw new TomlError("incomplete key-value: cannot find end of key", {
+      toml: str,
+      ptr
+    });
+  }
+  do {
+    let c = str[ptr = ++dot];
+    if (c !== " " && c !== "\t") {
+      if (c === '"' || c === "'") {
+        if (c === str[ptr + 1] && c === str[ptr + 2]) {
+          throw new TomlError("multiline strings are not allowed in keys", {
+            toml: str,
+            ptr
+          });
+        }
+        let eos = getStringEnd(str, ptr);
+        if (eos < 0) {
+          throw new TomlError("unfinished string encountered", {
+            toml: str,
+            ptr
+          });
+        }
+        dot = str.indexOf(".", eos);
+        let strEnd = str.slice(eos, dot < 0 || dot > endPtr ? endPtr : dot);
+        let newLine = indexOfNewline(strEnd);
+        if (newLine > -1) {
+          throw new TomlError("newlines are not allowed in keys", {
+            toml: str,
+            ptr: ptr + dot + newLine
+          });
+        }
+        if (strEnd.trimStart()) {
+          throw new TomlError("found extra tokens after the string part", {
+            toml: str,
+            ptr: eos
+          });
+        }
+        if (endPtr < eos) {
+          endPtr = str.indexOf(end, eos);
+          if (endPtr < 0) {
+            throw new TomlError("incomplete key-value: cannot find end of key", {
+              toml: str,
+              ptr
+            });
+          }
+        }
+        parsed.push(parseString(str, ptr, eos));
+      } else {
+        dot = str.indexOf(".", ptr);
+        let part = str.slice(ptr, dot < 0 || dot > endPtr ? endPtr : dot);
+        if (!KEY_PART_RE.test(part)) {
+          throw new TomlError("only letter, numbers, dashes and underscores are allowed in keys", {
+            toml: str,
+            ptr
+          });
+        }
+        parsed.push(part.trimEnd());
+      }
+    }
+  } while (dot + 1 && dot < endPtr);
+  return [parsed, skipVoid(str, endPtr + 1, true, true)];
+}
+function parseInlineTable(str, ptr, depth, integersAsBigInt) {
+  let res = {};
+  let seen = new Set;
+  let c;
+  let comma = 0;
+  ptr++;
+  while ((c = str[ptr++]) !== "}" && c) {
+    let err = { toml: str, ptr: ptr - 1 };
+    if (c === `
+`) {
+      throw new TomlError("newlines are not allowed in inline tables", err);
+    } else if (c === "#") {
+      throw new TomlError("inline tables cannot contain comments", err);
+    } else if (c === ",") {
+      throw new TomlError("expected key-value, found comma", err);
+    } else if (c !== " " && c !== "\t") {
+      let k;
+      let t = res;
+      let hasOwn = false;
+      let [key, keyEndPtr] = parseKey(str, ptr - 1);
+      for (let i = 0;i < key.length; i++) {
+        if (i)
+          t = hasOwn ? t[k] : t[k] = {};
+        k = key[i];
+        if ((hasOwn = Object.hasOwn(t, k)) && (typeof t[k] !== "object" || seen.has(t[k]))) {
+          throw new TomlError("trying to redefine an already defined value", {
+            toml: str,
+            ptr
+          });
+        }
+        if (!hasOwn && k === "__proto__") {
+          Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
+        }
+      }
+      if (hasOwn) {
+        throw new TomlError("trying to redefine an already defined value", {
+          toml: str,
+          ptr
+        });
+      }
+      let [value, valueEndPtr] = extractValue(str, keyEndPtr, "}", depth - 1, integersAsBigInt);
+      seen.add(value);
+      t[k] = value;
+      ptr = valueEndPtr;
+      comma = str[ptr - 1] === "," ? ptr - 1 : 0;
+    }
+  }
+  if (comma) {
+    throw new TomlError("trailing commas are not allowed in inline tables", {
+      toml: str,
+      ptr: comma
+    });
+  }
+  if (!c) {
+    throw new TomlError("unfinished table encountered", {
+      toml: str,
+      ptr
+    });
+  }
+  return [res, ptr];
+}
+function parseArray(str, ptr, depth, integersAsBigInt) {
+  let res = [];
+  let c;
+  ptr++;
+  while ((c = str[ptr++]) !== "]" && c) {
+    if (c === ",") {
+      throw new TomlError("expected value, found comma", {
+        toml: str,
+        ptr: ptr - 1
+      });
+    } else if (c === "#")
+      ptr = skipComment(str, ptr);
+    else if (c !== " " && c !== "\t" && c !== `
+` && c !== "\r") {
+      let e = extractValue(str, ptr - 1, "]", depth - 1, integersAsBigInt);
+      res.push(e[0]);
+      ptr = e[1];
+    }
+  }
+  if (!c) {
+    throw new TomlError("unfinished array encountered", {
+      toml: str,
+      ptr
+    });
+  }
+  return [res, ptr];
+}
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+function peekTable(key, table, meta3, type) {
+  let t = table;
+  let m = meta3;
+  let k;
+  let hasOwn = false;
+  let state;
+  for (let i = 0;i < key.length; i++) {
+    if (i) {
+      t = hasOwn ? t[k] : t[k] = {};
+      m = (state = m[k]).c;
+      if (type === 0 && (state.t === 1 || state.t === 2)) {
+        return null;
+      }
+      if (state.t === 2) {
+        let l = t.length - 1;
+        t = t[l];
+        m = m[l].c;
+      }
+    }
+    k = key[i];
+    if ((hasOwn = Object.hasOwn(t, k)) && m[k]?.t === 0 && m[k]?.d) {
+      return null;
+    }
+    if (!hasOwn) {
+      if (k === "__proto__") {
+        Object.defineProperty(t, k, { enumerable: true, configurable: true, writable: true });
+        Object.defineProperty(m, k, { enumerable: true, configurable: true, writable: true });
+      }
+      m[k] = {
+        t: i < key.length - 1 && type === 2 ? 3 : type,
+        d: false,
+        i: 0,
+        c: {}
+      };
+    }
+  }
+  state = m[k];
+  if (state.t !== type && !(type === 1 && state.t === 3)) {
+    return null;
+  }
+  if (type === 2) {
+    if (!state.d) {
+      state.d = true;
+      t[k] = [];
+    }
+    t[k].push(t = {});
+    state.c[state.i++] = state = { t: 1, d: false, i: 0, c: {} };
+  }
+  if (state.d) {
+    return null;
+  }
+  state.d = true;
+  if (type === 1) {
+    t = hasOwn ? t[k] : t[k] = {};
+  } else if (type === 0 && hasOwn) {
+    return null;
+  }
+  return [k, t, state.c];
+}
+function parse5(toml, { maxDepth = 1000, integersAsBigInt } = {}) {
+  let res = {};
+  let meta3 = {};
+  let tbl = res;
+  let m = meta3;
+  for (let ptr = skipVoid(toml, 0);ptr < toml.length; ) {
+    if (toml[ptr] === "[") {
+      let isTableArray = toml[++ptr] === "[";
+      let k = parseKey(toml, ptr += +isTableArray, "]");
+      if (isTableArray) {
+        if (toml[k[1] - 1] !== "]") {
+          throw new TomlError("expected end of table declaration", {
+            toml,
+            ptr: k[1] - 1
+          });
+        }
+        k[1]++;
+      }
+      let p = peekTable(k[0], res, meta3, isTableArray ? 2 : 1);
+      if (!p) {
+        throw new TomlError("trying to redefine an already defined table or value", {
+          toml,
+          ptr
+        });
+      }
+      m = p[2];
+      tbl = p[1];
+      ptr = k[1];
+    } else {
+      let k = parseKey(toml, ptr);
+      let p = peekTable(k[0], tbl, m, 0);
+      if (!p) {
+        throw new TomlError("trying to redefine an already defined table or value", {
+          toml,
+          ptr
+        });
+      }
+      let v = extractValue(toml, k[1], undefined, maxDepth, integersAsBigInt);
+      p[1][p[0]] = v[0];
+      ptr = v[1];
+    }
+    ptr = skipVoid(toml, ptr, true);
+    if (toml[ptr] && toml[ptr] !== `
+` && toml[ptr] !== "\r") {
+      throw new TomlError("each key-value declaration must be followed by an end-of-line", {
+        toml,
+        ptr
+      });
+    }
+    ptr = skipVoid(toml, ptr);
+  }
+  return res;
+}
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*!
+ * Copyright (c) Squirrel Chat et al., All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+class PluginDetector {
+  manifests;
+  constructor(manifests) {
+    this.manifests = manifests ?? pluginManifests.map((m) => Manifest2.parse(m));
+  }
+  detectLanguages(repoPath) {
+    const languages = [];
+    if (fs.existsSync(path.join(repoPath, "package.json"))) {
+      languages.push("javascript");
+    }
+    if (fs.existsSync(path.join(repoPath, "Cargo.toml"))) {
+      languages.push("rust");
+    }
+    return languages;
+  }
+  parsePackageJson(repoPath) {
+    const packageJsonPath = path.join(repoPath, "package.json");
+    if (!fs.existsSync(packageJsonPath)) {
+      return [];
+    }
+    const content = fs.readFileSync(packageJsonPath, "utf-8");
+    const packageJson = JSON.parse(content);
+    const packages = [];
+    const allDeps = {
+      ...packageJson.dependencies,
+      ...packageJson.devDependencies
+    };
+    for (const [name, version2] of Object.entries(allDeps)) {
+      if (typeof version2 === "string") {
+        packages.push({
+          language: "javascript",
+          name,
+          version: this.cleanVersion(version2)
+        });
+      }
+    }
+    return packages;
+  }
+  parseCargoToml(repoPath) {
+    const cargoTomlPath = path.join(repoPath, "Cargo.toml");
+    if (!fs.existsSync(cargoTomlPath)) {
+      return [];
+    }
+    const content = fs.readFileSync(cargoTomlPath, "utf-8");
+    const cargo = parse5(content);
+    const packages = [];
+    const deps = cargo.dependencies;
+    if (!deps || typeof deps !== "object") {
+      return packages;
+    }
+    for (const [name, value] of Object.entries(deps)) {
+      let version2;
+      if (typeof value === "string") {
+        version2 = value;
+      } else if (typeof value === "object" && value !== null && "version" in value) {
+        version2 = String(value.version);
+      }
+      if (version2) {
+        packages.push({
+          language: "rust",
+          name,
+          version: this.cleanVersion(version2)
+        });
+      }
+    }
+    return packages;
+  }
+  cleanVersion(version2) {
+    return semver2.coerce(version2)?.version ?? version2;
+  }
+  detectPackages(repoPath) {
+    return [
+      ...this.parsePackageJson(repoPath),
+      ...this.parseCargoToml(repoPath)
+    ];
+  }
+  detectPlugins(repoPath) {
+    const packages = this.detectPackages(repoPath);
+    const detected = [];
+    for (const manifest of this.manifests) {
+      const matchedPackages = [];
+      for (const library of manifest.libraries) {
+        const matchingPackage = packages.find((pkg) => pkg.language === library.language && pkg.name === library.package.name);
+        if (matchingPackage) {
+          matchedPackages.push(matchingPackage);
+        }
+      }
+      if (matchedPackages.length > 0) {
+        detected.push({ manifest, matchedPackages });
+      }
+    }
+    return detected;
+  }
+  generateDependencies(repoPath) {
+    const detected = this.detectPlugins(repoPath);
+    return detected.map(({ manifest, matchedPackages }) => ({
+      name: manifest.name,
+      version: matchedPackages[0]?.version ?? manifest.version ?? "1.0.0"
+    }));
+  }
+}
 
 // src/index.ts
-import * as fs12 from "fs";
+import * as fs13 from "fs";
 
 // ../node_modules/.bun/@isaacs+fs-minipass@4.0.1/node_modules/@isaacs/fs-minipass/dist/esm/index.js
 import EE from "events";
-import fs from "fs";
+import fs2 from "fs";
 
 // ../node_modules/.bun/minipass@7.1.2/node_modules/minipass/dist/esm/index.js
 import { EventEmitter } from "node:events";
@@ -34574,7 +35651,7 @@ class Minipass extends EventEmitter {
 }
 
 // ../node_modules/.bun/@isaacs+fs-minipass@4.0.1/node_modules/@isaacs/fs-minipass/dist/esm/index.js
-var writev = fs.writev;
+var writev = fs2.writev;
 var _autoClose = Symbol("_autoClose");
 var _close = Symbol("_close");
 var _ended = Symbol("_ended");
@@ -34613,17 +35690,17 @@ class ReadStream extends Minipass {
   [_size2];
   [_remain];
   [_autoClose];
-  constructor(path, opt) {
+  constructor(path2, opt) {
     opt = opt || {};
     super(opt);
     this.readable = true;
     this.writable = false;
-    if (typeof path !== "string") {
+    if (typeof path2 !== "string") {
       throw new TypeError("path must be a string");
     }
     this[_errored] = false;
     this[_fd] = typeof opt.fd === "number" ? opt.fd : undefined;
-    this[_path] = path;
+    this[_path] = path2;
     this[_readSize] = opt.readSize || 16 * 1024 * 1024;
     this[_reading] = false;
     this[_size2] = typeof opt.size === "number" ? opt.size : Infinity;
@@ -34648,7 +35725,7 @@ class ReadStream extends Minipass {
     throw new TypeError("this is a readable stream");
   }
   [_open]() {
-    fs.open(this[_path], "r", (er, fd) => this[_onopen](er, fd));
+    fs2.open(this[_path], "r", (er, fd) => this[_onopen](er, fd));
   }
   [_onopen](er, fd) {
     if (er) {
@@ -34669,7 +35746,7 @@ class ReadStream extends Minipass {
       if (buf.length === 0) {
         return process.nextTick(() => this[_onread](null, 0, buf));
       }
-      fs.read(this[_fd], buf, 0, buf.length, null, (er, br, b) => this[_onread](er, br, b));
+      fs2.read(this[_fd], buf, 0, buf.length, null, (er, br, b) => this[_onread](er, br, b));
     }
   }
   [_onread](er, br, buf) {
@@ -34684,7 +35761,7 @@ class ReadStream extends Minipass {
     if (this[_autoClose] && typeof this[_fd] === "number") {
       const fd = this[_fd];
       this[_fd] = undefined;
-      fs.close(fd, (er) => er ? this.emit("error", er) : this.emit("close"));
+      fs2.close(fd, (er) => er ? this.emit("error", er) : this.emit("close"));
     }
   }
   [_onerror](er) {
@@ -34731,7 +35808,7 @@ class ReadStreamSync extends ReadStream {
   [_open]() {
     let threw = true;
     try {
-      this[_onopen](null, fs.openSync(this[_path], "r"));
+      this[_onopen](null, fs2.openSync(this[_path], "r"));
       threw = false;
     } finally {
       if (threw) {
@@ -34746,7 +35823,7 @@ class ReadStreamSync extends ReadStream {
         this[_reading] = true;
         do {
           const buf = this[_makeBuf]();
-          const br = buf.length === 0 ? 0 : fs.readSync(this[_fd], buf, 0, buf.length, null);
+          const br = buf.length === 0 ? 0 : fs2.readSync(this[_fd], buf, 0, buf.length, null);
           if (!this[_handleChunk](br, buf)) {
             break;
           }
@@ -34764,7 +35841,7 @@ class ReadStreamSync extends ReadStream {
     if (this[_autoClose] && typeof this[_fd] === "number") {
       const fd = this[_fd];
       this[_fd] = undefined;
-      fs.closeSync(fd);
+      fs2.closeSync(fd);
       this.emit("close");
     }
   }
@@ -34786,10 +35863,10 @@ class WriteStream extends EE {
   [_flags];
   [_finished] = false;
   [_pos];
-  constructor(path, opt) {
+  constructor(path2, opt) {
     opt = opt || {};
     super(opt);
-    this[_path] = path;
+    this[_path] = path2;
     this[_fd] = typeof opt.fd === "number" ? opt.fd : undefined;
     this[_mode] = opt.mode === undefined ? 438 : opt.mode;
     this[_pos] = typeof opt.start === "number" ? opt.start : undefined;
@@ -34822,7 +35899,7 @@ class WriteStream extends EE {
     this.emit("error", er);
   }
   [_open]() {
-    fs.open(this[_path], this[_flags], this[_mode], (er, fd) => this[_onopen](er, fd));
+    fs2.open(this[_path], this[_flags], this[_mode], (er, fd) => this[_onopen](er, fd));
   }
   [_onopen](er, fd) {
     if (this[_defaultFlag] && this[_flags] === "r+" && er && er.code === "ENOENT") {
@@ -34866,7 +35943,7 @@ class WriteStream extends EE {
     return true;
   }
   [_write](buf) {
-    fs.write(this[_fd], buf, 0, buf.length, this[_pos], (er, bw) => this[_onwrite](er, bw));
+    fs2.write(this[_fd], buf, 0, buf.length, this[_pos], (er, bw) => this[_onwrite](er, bw));
   }
   [_onwrite](er, bw) {
     if (er) {
@@ -34907,7 +35984,7 @@ class WriteStream extends EE {
     if (this[_autoClose] && typeof this[_fd] === "number") {
       const fd = this[_fd];
       this[_fd] = undefined;
-      fs.close(fd, (er) => er ? this.emit("error", er) : this.emit("close"));
+      fs2.close(fd, (er) => er ? this.emit("error", er) : this.emit("close"));
     }
   }
 }
@@ -34917,7 +35994,7 @@ class WriteStreamSync extends WriteStream {
     let fd;
     if (this[_defaultFlag] && this[_flags] === "r+") {
       try {
-        fd = fs.openSync(this[_path], this[_flags], this[_mode]);
+        fd = fs2.openSync(this[_path], this[_flags], this[_mode]);
       } catch (er) {
         if (er?.code === "ENOENT") {
           this[_flags] = "w";
@@ -34927,7 +36004,7 @@ class WriteStreamSync extends WriteStream {
         }
       }
     } else {
-      fd = fs.openSync(this[_path], this[_flags], this[_mode]);
+      fd = fs2.openSync(this[_path], this[_flags], this[_mode]);
     }
     this[_onopen](null, fd);
   }
@@ -34935,14 +36012,14 @@ class WriteStreamSync extends WriteStream {
     if (this[_autoClose] && typeof this[_fd] === "number") {
       const fd = this[_fd];
       this[_fd] = undefined;
-      fs.closeSync(fd);
+      fs2.closeSync(fd);
       this.emit("close");
     }
   }
   [_write](buf) {
     let threw = true;
     try {
-      this[_onwrite](null, fs.writeSync(this[_fd], buf, 0, buf.length, this[_pos]));
+      this[_onwrite](null, fs2.writeSync(this[_fd], buf, 0, buf.length, this[_pos]));
       threw = false;
     } finally {
       if (threw) {
@@ -34955,10 +36032,10 @@ class WriteStreamSync extends WriteStream {
 }
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/create.js
-import path3 from "node:path";
+import path4 from "node:path";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/list.js
-import fs2 from "node:fs";
+import fs3 from "node:fs";
 import { dirname, parse as parse4 } from "path";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/options.js
@@ -35667,10 +36744,10 @@ class Header {
     }
     const prefixSize = this.ctime || this.atime ? 130 : 155;
     const split = splitPrefix(this.path || "", prefixSize);
-    const path = split[0];
+    const path2 = split[0];
     const prefix = split[1];
     this.needPax = !!split[2];
-    this.needPax = encString(buf, off, 100, path) || this.needPax;
+    this.needPax = encString(buf, off, 100, path2) || this.needPax;
     this.needPax = encNumber(buf, off + 100, 8, this.mode) || this.needPax;
     this.needPax = encNumber(buf, off + 108, 8, this.uid) || this.needPax;
     this.needPax = encNumber(buf, off + 116, 8, this.gid) || this.needPax;
@@ -36548,18 +37625,18 @@ var listFileSync = (opt) => {
   const file2 = opt.file;
   let fd;
   try {
-    fd = fs2.openSync(file2, "r");
-    const stat = fs2.fstatSync(fd);
+    fd = fs3.openSync(file2, "r");
+    const stat = fs3.fstatSync(fd);
     const readSize = opt.maxReadSize || 16 * 1024 * 1024;
     if (stat.size < readSize) {
       const buf = Buffer.allocUnsafe(stat.size);
-      const read = fs2.readSync(fd, buf, 0, stat.size, 0);
+      const read = fs3.readSync(fd, buf, 0, stat.size, 0);
       p.end(read === buf.byteLength ? buf : buf.subarray(0, read));
     } else {
       let pos2 = 0;
       const buf = Buffer.allocUnsafe(readSize);
       while (pos2 < stat.size) {
-        const bytesRead = fs2.readSync(fd, buf, 0, readSize, pos2);
+        const bytesRead = fs3.readSync(fd, buf, 0, readSize, pos2);
         if (bytesRead === 0)
           break;
         pos2 += bytesRead;
@@ -36570,19 +37647,19 @@ var listFileSync = (opt) => {
   } finally {
     if (typeof fd === "number") {
       try {
-        fs2.closeSync(fd);
+        fs3.closeSync(fd);
       } catch (er) {}
     }
   }
 };
 var listFile = (opt, _files) => {
-  const parse5 = new Parser(opt);
+  const parse6 = new Parser(opt);
   const readSize = opt.maxReadSize || 16 * 1024 * 1024;
   const file2 = opt.file;
   const p = new Promise((resolve, reject) => {
-    parse5.on("error", reject);
-    parse5.on("end", resolve);
-    fs2.stat(file2, (er, stat) => {
+    parse6.on("error", reject);
+    parse6.on("end", resolve);
+    fs3.stat(file2, (er, stat) => {
       if (er) {
         reject(er);
       } else {
@@ -36591,7 +37668,7 @@ var listFile = (opt, _files) => {
           size: stat.size
         });
         stream.on("error", reject);
-        stream.pipe(parse5);
+        stream.pipe(parse6);
       }
     });
   });
@@ -36605,11 +37682,11 @@ var list = makeCommand(listFileSync, listFile, (opt) => new Parser(opt), (opt) =
 });
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/pack.js
-import fs4 from "fs";
+import fs5 from "fs";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/write-entry.js
-import fs3 from "fs";
-import path from "path";
+import fs4 from "fs";
+import path2 from "path";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/mode-fix.js
 var modeFix = (mode, isDir, portable) => {
@@ -36634,16 +37711,16 @@ var modeFix = (mode, isDir, portable) => {
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/strip-absolute-path.js
 import { win32 } from "node:path";
 var { isAbsolute, parse: parse6 } = win32;
-var stripAbsolutePath = (path) => {
+var stripAbsolutePath = (path2) => {
   let r = "";
-  let parsed = parse6(path);
-  while (isAbsolute(path) || parsed.root) {
-    const root = path.charAt(0) === "/" && path.slice(0, 4) !== "//?/" ? "/" : parsed.root;
-    path = path.slice(root.length);
+  let parsed = parse6(path2);
+  while (isAbsolute(path2) || parsed.root) {
+    const root = path2.charAt(0) === "/" && path2.slice(0, 4) !== "//?/" ? "/" : parsed.root;
+    path2 = path2.slice(root.length);
     r += root;
-    parsed = parse6(path);
+    parsed = parse6(path2);
   }
-  return [r, path];
+  return [r, path2];
 };
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/winchars.js
@@ -36655,12 +37732,12 @@ var encode5 = (s) => raw.reduce((s2, c) => s2.split(c).join(toWin.get(c)), s);
 var decode3 = (s) => win.reduce((s2, c) => s2.split(c).join(toRaw.get(c)), s);
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/write-entry.js
-var prefixPath = (path2, prefix) => {
+var prefixPath = (path3, prefix) => {
   if (!prefix) {
-    return normalizeWindowsPath(path2);
+    return normalizeWindowsPath(path3);
   }
-  path2 = normalizeWindowsPath(path2).replace(/^\.(\/|$)/, "");
-  return stripTrailingSlashes(prefix) + "/" + path2;
+  path3 = normalizeWindowsPath(path3).replace(/^\.(\/|$)/, "");
+  return stripTrailingSlashes(prefix) + "/" + path3;
 };
 var maxReadSize = 16 * 1024 * 1024;
 var PROCESS = Symbol("process");
@@ -36745,7 +37822,7 @@ class WriteEntry extends Minipass {
       this.path = decode3(this.path.replace(/\\/g, "/"));
       p = p.replace(/\\/g, "/");
     }
-    this.absolute = normalizeWindowsPath(opt.absolute || path.resolve(this.cwd, p));
+    this.absolute = normalizeWindowsPath(opt.absolute || path2.resolve(this.cwd, p));
     if (this.path === "") {
       this.path = "./";
     }
@@ -36772,7 +37849,7 @@ class WriteEntry extends Minipass {
     return super.emit(ev, ...data);
   }
   [LSTAT]() {
-    fs3.lstat(this.absolute, (er, stat) => {
+    fs4.lstat(this.absolute, (er, stat) => {
       if (er) {
         return this.emit("error", er);
       }
@@ -36804,8 +37881,8 @@ class WriteEntry extends Minipass {
   [MODE](mode) {
     return modeFix(mode, this.type === "Directory", this.portable);
   }
-  [PREFIX](path2) {
-    return prefixPath(path2, this.prefix);
+  [PREFIX](path3) {
+    return prefixPath(path3, this.prefix);
   }
   [HEADER]() {
     if (!this.stat) {
@@ -36862,7 +37939,7 @@ class WriteEntry extends Minipass {
     this.end();
   }
   [SYMLINK]() {
-    fs3.readlink(this.absolute, (er, linkpath) => {
+    fs4.readlink(this.absolute, (er, linkpath) => {
       if (er) {
         return this.emit("error", er);
       }
@@ -36879,7 +37956,7 @@ class WriteEntry extends Minipass {
       throw new Error("cannot create link entry without stat");
     }
     this.type = "Link";
-    this.linkpath = normalizeWindowsPath(path.relative(this.cwd, linkpath));
+    this.linkpath = normalizeWindowsPath(path2.relative(this.cwd, linkpath));
     this.stat.size = 0;
     this[HEADER]();
     this.end();
@@ -36903,7 +37980,7 @@ class WriteEntry extends Minipass {
     this[OPENFILE]();
   }
   [OPENFILE]() {
-    fs3.open(this.absolute, "r", (er, fd) => {
+    fs4.open(this.absolute, "r", (er, fd) => {
       if (er) {
         return this.emit("error", er);
       }
@@ -36933,7 +38010,7 @@ class WriteEntry extends Minipass {
     if (fd === undefined || buf === undefined) {
       throw new Error("cannot read file without first opening");
     }
-    fs3.read(fd, buf, offset, length, pos2, (er, bytesRead) => {
+    fs4.read(fd, buf, offset, length, pos2, (er, bytesRead) => {
       if (er) {
         return this[CLOSE](() => this.emit("error", er));
       }
@@ -36942,7 +38019,7 @@ class WriteEntry extends Minipass {
   }
   [CLOSE](cb = () => {}) {
     if (this.fd !== undefined)
-      fs3.close(this.fd, cb);
+      fs4.close(this.fd, cb);
   }
   [ONREAD](bytesRead) {
     if (bytesRead <= 0 && this.remain > 0) {
@@ -37024,13 +38101,13 @@ class WriteEntry extends Minipass {
 class WriteEntrySync extends WriteEntry {
   sync = true;
   [LSTAT]() {
-    this[ONLSTAT](fs3.lstatSync(this.absolute));
+    this[ONLSTAT](fs4.lstatSync(this.absolute));
   }
   [SYMLINK]() {
-    this[ONREADLINK](fs3.readlinkSync(this.absolute));
+    this[ONREADLINK](fs4.readlinkSync(this.absolute));
   }
   [OPENFILE]() {
-    this[ONOPENFILE](fs3.openSync(this.absolute, "r"));
+    this[ONOPENFILE](fs4.openSync(this.absolute, "r"));
   }
   [READ2]() {
     let threw = true;
@@ -37039,7 +38116,7 @@ class WriteEntrySync extends WriteEntry {
       if (fd === undefined || buf === undefined) {
         throw new Error("fd and buf must be set in READ method");
       }
-      const bytesRead = fs3.readSync(fd, buf, offset, length, pos2);
+      const bytesRead = fs4.readSync(fd, buf, offset, length, pos2);
       this[ONREAD](bytesRead);
       threw = false;
     } finally {
@@ -37055,7 +38132,7 @@ class WriteEntrySync extends WriteEntry {
   }
   [CLOSE](cb = () => {}) {
     if (this.fd !== undefined)
-      fs3.closeSync(this.fd);
+      fs4.closeSync(this.fd);
     cb();
   }
 }
@@ -37176,8 +38253,8 @@ class WriteEntryTar extends Minipass {
     super.write(b);
     readEntry.pipe(this);
   }
-  [PREFIX](path2) {
-    return prefixPath(path2, this.prefix);
+  [PREFIX](path3) {
+    return prefixPath(path3, this.prefix);
   }
   [MODE](mode) {
     return modeFix(mode, this.type === "Directory", this.portable);
@@ -37592,7 +38669,7 @@ class Node {
 }
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/pack.js
-import path2 from "path";
+import path3 from "path";
 class PackJob {
   path;
   absolute;
@@ -37602,8 +38679,8 @@ class PackJob {
   pending = false;
   ignore = false;
   piped = false;
-  constructor(path3, absolute) {
-    this.path = path3 || "./";
+  constructor(path4, absolute) {
+    this.path = path4 || "./";
     this.absolute = absolute;
   }
 }
@@ -37724,21 +38801,21 @@ class Pack extends Minipass {
   [WRITE](chunk) {
     return super.write(chunk);
   }
-  add(path3) {
-    this.write(path3);
+  add(path4) {
+    this.write(path4);
     return this;
   }
-  end(path3, encoding, cb) {
-    if (typeof path3 === "function") {
-      cb = path3;
-      path3 = undefined;
+  end(path4, encoding, cb) {
+    if (typeof path4 === "function") {
+      cb = path4;
+      path4 = undefined;
     }
     if (typeof encoding === "function") {
       cb = encoding;
       encoding = undefined;
     }
-    if (path3) {
-      this.add(path3);
+    if (path4) {
+      this.add(path4);
     }
     this[ENDED2] = true;
     this[PROCESS2]();
@@ -37746,19 +38823,19 @@ class Pack extends Minipass {
       cb();
     return this;
   }
-  write(path3) {
+  write(path4) {
     if (this[ENDED2]) {
       throw new Error("write after end");
     }
-    if (path3 instanceof ReadEntry) {
-      this[ADDTARENTRY](path3);
+    if (path4 instanceof ReadEntry) {
+      this[ADDTARENTRY](path4);
     } else {
-      this[ADDFSENTRY](path3);
+      this[ADDFSENTRY](path4);
     }
     return this.flowing;
   }
   [ADDTARENTRY](p) {
-    const absolute = normalizeWindowsPath(path2.resolve(this.cwd, p.path));
+    const absolute = normalizeWindowsPath(path3.resolve(this.cwd, p.path));
     if (!this.filter(p.path, p)) {
       p.resume();
     } else {
@@ -37771,7 +38848,7 @@ class Pack extends Minipass {
     this[PROCESS2]();
   }
   [ADDFSENTRY](p) {
-    const absolute = normalizeWindowsPath(path2.resolve(this.cwd, p));
+    const absolute = normalizeWindowsPath(path3.resolve(this.cwd, p));
     this[QUEUE2].push(new PackJob(p, absolute));
     this[PROCESS2]();
   }
@@ -37779,7 +38856,7 @@ class Pack extends Minipass {
     job.pending = true;
     this[JOBS] += 1;
     const stat = this.follow ? "stat" : "lstat";
-    fs4[stat](job.absolute, (er, stat2) => {
+    fs5[stat](job.absolute, (er, stat2) => {
       job.pending = false;
       this[JOBS] -= 1;
       if (er) {
@@ -37800,7 +38877,7 @@ class Pack extends Minipass {
   [READDIR](job) {
     job.pending = true;
     this[JOBS] += 1;
-    fs4.readdir(job.absolute, (er, entries) => {
+    fs5.readdir(job.absolute, (er, entries) => {
       job.pending = false;
       this[JOBS] -= 1;
       if (er) {
@@ -37969,10 +39046,10 @@ class PackSync extends Pack {
   resume() {}
   [STAT](job) {
     const stat = this.follow ? "statSync" : "lstatSync";
-    this[ONSTAT](job, fs4[stat](job.absolute));
+    this[ONSTAT](job, fs5[stat](job.absolute));
   }
   [READDIR](job) {
-    this[ONREADDIR](job, fs4.readdirSync(job.absolute));
+    this[ONREADDIR](job, fs5.readdirSync(job.absolute));
   }
   [PIPE](job) {
     const source = job.entry;
@@ -38025,7 +39102,7 @@ var addFilesSync = (p, files) => {
   files.forEach((file2) => {
     if (file2.charAt(0) === "@") {
       list({
-        file: path3.resolve(p.cwd, file2.slice(1)),
+        file: path4.resolve(p.cwd, file2.slice(1)),
         sync: true,
         noResume: true,
         onReadEntry: (entry) => p.add(entry)
@@ -38041,7 +39118,7 @@ var addFilesAsync = async (p, files) => {
     const file2 = String(files[i]);
     if (file2.charAt(0) === "@") {
       await list({
-        file: path3.resolve(String(p.cwd), file2.slice(1)),
+        file: path4.resolve(String(p.cwd), file2.slice(1)),
         noResume: true,
         onReadEntry: (entry) => {
           p.add(entry);
@@ -38069,56 +39146,56 @@ var create = makeCommand(createFileSync, createFile, createSync, createAsync, (_
   }
 });
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/extract.js
-import fs9 from "node:fs";
+import fs10 from "node:fs";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/unpack.js
 import assert3 from "node:assert";
 import { randomBytes } from "node:crypto";
-import fs8 from "node:fs";
-import path6 from "node:path";
+import fs9 from "node:fs";
+import path7 from "node:path";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/get-write-flag.js
-import fs5 from "fs";
+import fs6 from "fs";
 var platform2 = process.env.__FAKE_PLATFORM__ || process.platform;
 var isWindows = platform2 === "win32";
-var { O_CREAT, O_TRUNC, O_WRONLY } = fs5.constants;
-var UV_FS_O_FILEMAP = Number(process.env.__FAKE_FS_O_FILENAME__) || fs5.constants.UV_FS_O_FILEMAP || 0;
+var { O_CREAT, O_TRUNC, O_WRONLY } = fs6.constants;
+var UV_FS_O_FILEMAP = Number(process.env.__FAKE_FS_O_FILENAME__) || fs6.constants.UV_FS_O_FILEMAP || 0;
 var fMapEnabled = isWindows && !!UV_FS_O_FILEMAP;
 var fMapLimit = 512 * 1024;
 var fMapFlag = UV_FS_O_FILEMAP | O_TRUNC | O_CREAT | O_WRONLY;
 var getWriteFlag = !fMapEnabled ? () => "w" : (size) => size < fMapLimit ? fMapFlag : "w";
 
 // ../node_modules/.bun/chownr@3.0.0/node_modules/chownr/dist/esm/index.js
-import fs6 from "node:fs";
-import path4 from "node:path";
-var lchownSync = (path5, uid, gid) => {
+import fs7 from "node:fs";
+import path5 from "node:path";
+var lchownSync = (path6, uid, gid) => {
   try {
-    return fs6.lchownSync(path5, uid, gid);
+    return fs7.lchownSync(path6, uid, gid);
   } catch (er) {
     if (er?.code !== "ENOENT")
       throw er;
   }
 };
 var chown = (cpath, uid, gid, cb) => {
-  fs6.lchown(cpath, uid, gid, (er) => {
+  fs7.lchown(cpath, uid, gid, (er) => {
     cb(er && er?.code !== "ENOENT" ? er : null);
   });
 };
 var chownrKid = (p, child, uid, gid, cb) => {
   if (child.isDirectory()) {
-    chownr(path4.resolve(p, child.name), uid, gid, (er) => {
+    chownr(path5.resolve(p, child.name), uid, gid, (er) => {
       if (er)
         return cb(er);
-      const cpath = path4.resolve(p, child.name);
+      const cpath = path5.resolve(p, child.name);
       chown(cpath, uid, gid, cb);
     });
   } else {
-    const cpath = path4.resolve(p, child.name);
+    const cpath = path5.resolve(p, child.name);
     chown(cpath, uid, gid, cb);
   }
 };
 var chownr = (p, uid, gid, cb) => {
-  fs6.readdir(p, { withFileTypes: true }, (er, children) => {
+  fs7.readdir(p, { withFileTypes: true }, (er, children) => {
     if (er) {
       if (er.code === "ENOENT")
         return cb();
@@ -38144,13 +39221,13 @@ var chownr = (p, uid, gid, cb) => {
 };
 var chownrKidSync = (p, child, uid, gid) => {
   if (child.isDirectory())
-    chownrSync(path4.resolve(p, child.name), uid, gid);
-  lchownSync(path4.resolve(p, child.name), uid, gid);
+    chownrSync(path5.resolve(p, child.name), uid, gid);
+  lchownSync(path5.resolve(p, child.name), uid, gid);
 };
 var chownrSync = (p, uid, gid) => {
   let children;
   try {
-    children = fs6.readdirSync(p, { withFileTypes: true });
+    children = fs7.readdirSync(p, { withFileTypes: true });
   } catch (er) {
     const e = er;
     if (e?.code === "ENOENT")
@@ -38167,18 +39244,18 @@ var chownrSync = (p, uid, gid) => {
 };
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/mkdir.js
-import fs7 from "node:fs";
+import fs8 from "node:fs";
 import fsp from "node:fs/promises";
-import path5 from "node:path";
+import path6 from "node:path";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/cwd-error.js
 class CwdError extends Error {
   path;
   code;
   syscall = "chdir";
-  constructor(path5, code2) {
-    super(`${code2}: Cannot cd into '${path5}'`);
-    this.path = path5;
+  constructor(path6, code2) {
+    super(`${code2}: Cannot cd into '${path6}'`);
+    this.path = path6;
     this.code = code2;
   }
   get name() {
@@ -38192,10 +39269,10 @@ class SymlinkError extends Error {
   symlink;
   syscall = "symlink";
   code = "TAR_SYMLINK_ERROR";
-  constructor(symlink, path5) {
+  constructor(symlink, path6) {
     super("TAR_SYMLINK_ERROR: Cannot extract through symbolic link");
     this.symlink = symlink;
-    this.path = path5;
+    this.path = path6;
   }
   get name() {
     return "SymlinkError";
@@ -38204,7 +39281,7 @@ class SymlinkError extends Error {
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/mkdir.js
 var checkCwd = (dir, cb) => {
-  fs7.stat(dir, (er, st) => {
+  fs8.stat(dir, (er, st) => {
     if (er || !st.isDirectory()) {
       er = new CwdError(dir, er?.code || "ENOTDIR");
     }
@@ -38229,7 +39306,7 @@ var mkdir = (dir, opt, cb) => {
       if (created && doChown) {
         chownr(created, uid, gid, (er2) => done(er2));
       } else if (needChmod) {
-        fs7.chmod(dir, mode, cb);
+        fs8.chmod(dir, mode, cb);
       } else {
         cb();
       }
@@ -38241,7 +39318,7 @@ var mkdir = (dir, opt, cb) => {
   if (preserve) {
     return fsp.mkdir(dir, { mode, recursive: true }).then((made) => done(null, made ?? undefined), done);
   }
-  const sub = normalizeWindowsPath(path5.relative(cwd, dir));
+  const sub = normalizeWindowsPath(path6.relative(cwd, dir));
   const parts = sub.split("/");
   mkdir_(cwd, parts, mode, unlink, cwd, undefined, done);
 };
@@ -38250,23 +39327,23 @@ var mkdir_ = (base, parts, mode, unlink, cwd, created, cb) => {
     return cb(null, created);
   }
   const p = parts.shift();
-  const part = normalizeWindowsPath(path5.resolve(base + "/" + p));
-  fs7.mkdir(part, mode, onmkdir(part, parts, mode, unlink, cwd, created, cb));
+  const part = normalizeWindowsPath(path6.resolve(base + "/" + p));
+  fs8.mkdir(part, mode, onmkdir(part, parts, mode, unlink, cwd, created, cb));
 };
 var onmkdir = (part, parts, mode, unlink, cwd, created, cb) => (er) => {
   if (er) {
-    fs7.lstat(part, (statEr, st) => {
+    fs8.lstat(part, (statEr, st) => {
       if (statEr) {
         statEr.path = statEr.path && normalizeWindowsPath(statEr.path);
         cb(statEr);
       } else if (st.isDirectory()) {
         mkdir_(part, parts, mode, unlink, cwd, created, cb);
       } else if (unlink) {
-        fs7.unlink(part, (er2) => {
+        fs8.unlink(part, (er2) => {
           if (er2) {
             return cb(er2);
           }
-          fs7.mkdir(part, mode, onmkdir(part, parts, mode, unlink, cwd, created, cb));
+          fs8.mkdir(part, mode, onmkdir(part, parts, mode, unlink, cwd, created, cb));
         });
       } else if (st.isSymbolicLink()) {
         return cb(new SymlinkError(part, part + "/" + parts.join("/")));
@@ -38283,7 +39360,7 @@ var checkCwdSync = (dir) => {
   let ok = false;
   let code2 = undefined;
   try {
-    ok = fs7.statSync(dir).isDirectory();
+    ok = fs8.statSync(dir).isDirectory();
   } catch (er) {
     code2 = er?.code;
   } finally {
@@ -38308,7 +39385,7 @@ var mkdirSync = (dir, opt) => {
       chownrSync(created2, uid, gid);
     }
     if (needChmod) {
-      fs7.chmodSync(dir, mode);
+      fs8.chmodSync(dir, mode);
     }
   };
   if (dir === cwd) {
@@ -38316,23 +39393,23 @@ var mkdirSync = (dir, opt) => {
     return done();
   }
   if (preserve) {
-    return done(fs7.mkdirSync(dir, { mode, recursive: true }) ?? undefined);
+    return done(fs8.mkdirSync(dir, { mode, recursive: true }) ?? undefined);
   }
-  const sub = normalizeWindowsPath(path5.relative(cwd, dir));
+  const sub = normalizeWindowsPath(path6.relative(cwd, dir));
   const parts = sub.split("/");
   let created = undefined;
   for (let p = parts.shift(), part = cwd;p && (part += "/" + p); p = parts.shift()) {
-    part = normalizeWindowsPath(path5.resolve(part));
+    part = normalizeWindowsPath(path6.resolve(part));
     try {
-      fs7.mkdirSync(part, mode);
+      fs8.mkdirSync(part, mode);
       created = created || part;
     } catch (er) {
-      const st = fs7.lstatSync(part);
+      const st = fs8.lstatSync(part);
       if (st.isDirectory()) {
         continue;
       } else if (unlink) {
-        fs7.unlinkSync(part);
-        fs7.mkdirSync(part, mode);
+        fs8.unlinkSync(part);
+        fs8.mkdirSync(part, mode);
         created = created || part;
         continue;
       } else if (st.isSymbolicLink()) {
@@ -38344,7 +39421,7 @@ var mkdirSync = (dir, opt) => {
 };
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/path-reservations.js
-import { join } from "node:path";
+import { join as join2 } from "node:path";
 
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/normalize-unicode.js
 var normalizeCache = Object.create(null);
@@ -38373,13 +39450,13 @@ var normalizeUnicode = (s) => {
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/path-reservations.js
 var platform3 = process.env.TESTING_TAR_FAKE_PLATFORM || process.platform;
 var isWindows2 = platform3 === "win32";
-var getDirs = (path6) => {
-  const dirs = path6.split("/").slice(0, -1).reduce((set2, path7) => {
+var getDirs = (path7) => {
+  const dirs = path7.split("/").slice(0, -1).reduce((set2, path8) => {
     const s = set2[set2.length - 1];
     if (s !== undefined) {
-      path7 = join(s, path7);
+      path8 = join2(s, path8);
     }
-    set2.push(path7 || "/");
+    set2.push(path8 || "/");
     return set2;
   }, []);
   return dirs;
@@ -38391,9 +39468,9 @@ class PathReservations {
   #running = new Set;
   reserve(paths, fn) {
     paths = isWindows2 ? ["win32 parallelization disabled"] : paths.map((p) => {
-      return stripTrailingSlashes(join(normalizeUnicode(p))).toLowerCase();
+      return stripTrailingSlashes(join2(normalizeUnicode(p))).toLowerCase();
     });
-    const dirs = new Set(paths.map((path6) => getDirs(path6)).reduce((a, b) => a.concat(b)));
+    const dirs = new Set(paths.map((path7) => getDirs(path7)).reduce((a, b) => a.concat(b)));
     this.#reservations.set(fn, { dirs, paths });
     for (const p of paths) {
       const q = this.#queues.get(p);
@@ -38424,8 +39501,8 @@ class PathReservations {
       throw new Error("function does not have any path reservations");
     }
     return {
-      paths: res.paths.map((path6) => this.#queues.get(path6)),
-      dirs: [...res.dirs].map((path6) => this.#queues.get(path6))
+      paths: res.paths.map((path7) => this.#queues.get(path7)),
+      dirs: [...res.dirs].map((path7) => this.#queues.get(path7))
     };
   }
   check(fn) {
@@ -38450,14 +39527,14 @@ class PathReservations {
     }
     const { paths, dirs } = res;
     const next = new Set;
-    for (const path6 of paths) {
-      const q = this.#queues.get(path6);
+    for (const path7 of paths) {
+      const q = this.#queues.get(path7);
       if (!q || q?.[0] !== fn) {
         continue;
       }
       const q0 = q[1];
       if (!q0) {
-        this.#queues.delete(path6);
+        this.#queues.delete(path7);
         continue;
       }
       q.shift();
@@ -38521,25 +39598,25 @@ var CHECKED_CWD = Symbol("checkedCwd");
 var platform4 = process.env.TESTING_TAR_FAKE_PLATFORM || process.platform;
 var isWindows3 = platform4 === "win32";
 var DEFAULT_MAX_DEPTH = 1024;
-var unlinkFile = (path7, cb) => {
+var unlinkFile = (path8, cb) => {
   if (!isWindows3) {
-    return fs8.unlink(path7, cb);
+    return fs9.unlink(path8, cb);
   }
-  const name2 = path7 + ".DELETE." + randomBytes(16).toString("hex");
-  fs8.rename(path7, name2, (er) => {
+  const name2 = path8 + ".DELETE." + randomBytes(16).toString("hex");
+  fs9.rename(path8, name2, (er) => {
     if (er) {
       return cb(er);
     }
-    fs8.unlink(name2, cb);
+    fs9.unlink(name2, cb);
   });
 };
-var unlinkFileSync = (path7) => {
+var unlinkFileSync = (path8) => {
   if (!isWindows3) {
-    return fs8.unlinkSync(path7);
+    return fs9.unlinkSync(path8);
   }
-  const name2 = path7 + ".DELETE." + randomBytes(16).toString("hex");
-  fs8.renameSync(path7, name2);
-  fs8.unlinkSync(name2);
+  const name2 = path8 + ".DELETE." + randomBytes(16).toString("hex");
+  fs9.renameSync(path8, name2);
+  fs9.unlinkSync(name2);
 };
 var uint322 = (a, b, c) => a !== undefined && a === a >>> 0 ? a : b !== undefined && b === b >>> 0 ? b : c;
 
@@ -38610,7 +39687,7 @@ class Unpack extends Parser {
     this.noMtime = !!opt.noMtime;
     this.preservePaths = !!opt.preservePaths;
     this.unlink = !!opt.unlink;
-    this.cwd = normalizeWindowsPath(path6.resolve(opt.cwd || process.cwd()));
+    this.cwd = normalizeWindowsPath(path7.resolve(opt.cwd || process.cwd()));
     this.strip = Number(opt.strip) || 0;
     this.processUmask = !this.chmod ? 0 : typeof opt.processUmask === "number" ? opt.processUmask : process.umask();
     this.umask = typeof opt.umask === "number" ? opt.umask : this.processUmask;
@@ -38675,10 +39752,10 @@ class Unpack extends Parser {
         });
       }
     }
-    if (path6.isAbsolute(entry.path)) {
-      entry.absolute = normalizeWindowsPath(path6.resolve(entry.path));
+    if (path7.isAbsolute(entry.path)) {
+      entry.absolute = normalizeWindowsPath(path7.resolve(entry.path));
     } else {
-      entry.absolute = normalizeWindowsPath(path6.resolve(this.cwd, entry.path));
+      entry.absolute = normalizeWindowsPath(path7.resolve(this.cwd, entry.path));
     }
     if (!this.preservePaths && typeof entry.absolute === "string" && entry.absolute.indexOf(this.cwd + "/") !== 0 && entry.absolute !== this.cwd) {
       this.warn("TAR_ENTRY_ERROR", "path escaped extraction target", {
@@ -38693,9 +39770,9 @@ class Unpack extends Parser {
       return false;
     }
     if (this.win32) {
-      const { root: aRoot } = path6.win32.parse(String(entry.absolute));
+      const { root: aRoot } = path7.win32.parse(String(entry.absolute));
       entry.absolute = aRoot + encode5(String(entry.absolute).slice(aRoot.length));
-      const { root: pRoot } = path6.win32.parse(entry.path);
+      const { root: pRoot } = path7.win32.parse(entry.path);
       entry.path = pRoot + encode5(entry.path.slice(pRoot.length));
     }
     return true;
@@ -38764,7 +39841,7 @@ class Unpack extends Parser {
     });
     stream.on("error", (er) => {
       if (stream.fd) {
-        fs8.close(stream.fd, () => {});
+        fs9.close(stream.fd, () => {});
       }
       stream.write = () => true;
       this[ONERROR](er, entry);
@@ -38774,7 +39851,7 @@ class Unpack extends Parser {
     const done = (er) => {
       if (er) {
         if (stream.fd) {
-          fs8.close(stream.fd, () => {});
+          fs9.close(stream.fd, () => {});
         }
         this[ONERROR](er, entry);
         fullyDone();
@@ -38782,7 +39859,7 @@ class Unpack extends Parser {
       }
       if (--actions === 0) {
         if (stream.fd !== undefined) {
-          fs8.close(stream.fd, (er2) => {
+          fs9.close(stream.fd, (er2) => {
             if (er2) {
               this[ONERROR](er2, entry);
             } else {
@@ -38800,14 +39877,14 @@ class Unpack extends Parser {
         actions++;
         const atime = entry.atime || new Date;
         const mtime = entry.mtime;
-        fs8.futimes(fd, atime, mtime, (er) => er ? fs8.utimes(abs, atime, mtime, (er2) => done(er2 && er)) : done());
+        fs9.futimes(fd, atime, mtime, (er) => er ? fs9.utimes(abs, atime, mtime, (er2) => done(er2 && er)) : done());
       }
       if (typeof fd === "number" && this[DOCHOWN](entry)) {
         actions++;
         const uid = this[UID](entry);
         const gid = this[GID](entry);
         if (typeof uid === "number" && typeof gid === "number") {
-          fs8.fchown(fd, uid, gid, (er) => er ? fs8.chown(abs, uid, gid, (er2) => done(er2 && er)) : done());
+          fs9.fchown(fd, uid, gid, (er) => er ? fs9.chown(abs, uid, gid, (er2) => done(er2 && er)) : done());
         }
       }
       done();
@@ -38840,11 +39917,11 @@ class Unpack extends Parser {
       };
       if (entry.mtime && !this.noMtime) {
         actions++;
-        fs8.utimes(String(entry.absolute), entry.atime || new Date, entry.mtime, done);
+        fs9.utimes(String(entry.absolute), entry.atime || new Date, entry.mtime, done);
       }
       if (this[DOCHOWN](entry)) {
         actions++;
-        fs8.chown(String(entry.absolute), Number(this[UID](entry)), Number(this[GID](entry)), done);
+        fs9.chown(String(entry.absolute), Number(this[UID](entry)), Number(this[GID](entry)), done);
       }
       done();
     });
@@ -38858,7 +39935,7 @@ class Unpack extends Parser {
     this[LINK](entry, String(entry.linkpath), "symlink", done);
   }
   [HARDLINK2](entry, done) {
-    const linkpath = normalizeWindowsPath(path6.resolve(this.cwd, String(entry.linkpath)));
+    const linkpath = normalizeWindowsPath(path7.resolve(this.cwd, String(entry.linkpath)));
     this[LINK](entry, linkpath, "link", done);
   }
   [PEND]() {
@@ -38900,7 +39977,7 @@ class Unpack extends Parser {
     };
     const start = () => {
       if (entry.absolute !== this.cwd) {
-        const parent = normalizeWindowsPath(path6.dirname(String(entry.absolute)));
+        const parent = normalizeWindowsPath(path7.dirname(String(entry.absolute)));
         if (parent !== this.cwd) {
           return this[MKDIR](parent, this.dmode, (er) => {
             if (er) {
@@ -38915,7 +39992,7 @@ class Unpack extends Parser {
       afterMakeParent();
     };
     const afterMakeParent = () => {
-      fs8.lstat(String(entry.absolute), (lstatEr, st) => {
+      fs9.lstat(String(entry.absolute), (lstatEr, st) => {
         if (st && (this.keep || this.newer && st.mtime > (entry.mtime ?? st.mtime))) {
           this[SKIP](entry);
           done();
@@ -38931,10 +40008,10 @@ class Unpack extends Parser {
             if (!needChmod) {
               return afterChmod();
             }
-            return fs8.chmod(String(entry.absolute), Number(entry.mode), afterChmod);
+            return fs9.chmod(String(entry.absolute), Number(entry.mode), afterChmod);
           }
           if (entry.absolute !== this.cwd) {
-            return fs8.rmdir(String(entry.absolute), (er) => this[MAKEFS](er ?? null, entry, done));
+            return fs9.rmdir(String(entry.absolute), (er) => this[MAKEFS](er ?? null, entry, done));
           }
         }
         if (entry.absolute === this.cwd) {
@@ -38970,7 +40047,7 @@ class Unpack extends Parser {
     }
   }
   [LINK](entry, linkpath, link, done) {
-    fs8[link](linkpath, String(entry.absolute), (er) => {
+    fs9[link](linkpath, String(entry.absolute), (er) => {
       if (er) {
         this[ONERROR](er, entry);
       } else {
@@ -39003,7 +40080,7 @@ class UnpackSync extends Unpack {
       this[CHECKED_CWD] = true;
     }
     if (entry.absolute !== this.cwd) {
-      const parent = normalizeWindowsPath(path6.dirname(String(entry.absolute)));
+      const parent = normalizeWindowsPath(path7.dirname(String(entry.absolute)));
       if (parent !== this.cwd) {
         const mkParent = this[MKDIR](parent, this.dmode);
         if (mkParent) {
@@ -39011,7 +40088,7 @@ class UnpackSync extends Unpack {
         }
       }
     }
-    const [lstatEr, st] = callSync(() => fs8.lstatSync(String(entry.absolute)));
+    const [lstatEr, st] = callSync(() => fs9.lstatSync(String(entry.absolute)));
     if (st && (this.keep || this.newer && st.mtime > (entry.mtime ?? st.mtime))) {
       return this[SKIP](entry);
     }
@@ -39022,11 +40099,11 @@ class UnpackSync extends Unpack {
       if (entry.type === "Directory") {
         const needChmod = this.chmod && entry.mode && (st.mode & 4095) !== entry.mode;
         const [er3] = needChmod ? callSync(() => {
-          fs8.chmodSync(String(entry.absolute), Number(entry.mode));
+          fs9.chmodSync(String(entry.absolute), Number(entry.mode));
         }) : [];
         return this[MAKEFS](er3, entry);
       }
-      const [er2] = callSync(() => fs8.rmdirSync(String(entry.absolute)));
+      const [er2] = callSync(() => fs9.rmdirSync(String(entry.absolute)));
       this[MAKEFS](er2, entry);
     }
     const [er] = entry.absolute === this.cwd ? [] : callSync(() => unlinkFileSync(String(entry.absolute)));
@@ -39037,7 +40114,7 @@ class UnpackSync extends Unpack {
     const oner = (er) => {
       let closeError;
       try {
-        fs8.closeSync(fd);
+        fs9.closeSync(fd);
       } catch (e) {
         closeError = e;
       }
@@ -39048,7 +40125,7 @@ class UnpackSync extends Unpack {
     };
     let fd;
     try {
-      fd = fs8.openSync(String(entry.absolute), getWriteFlag(entry.size), mode);
+      fd = fs9.openSync(String(entry.absolute), getWriteFlag(entry.size), mode);
     } catch (er) {
       return oner(er);
     }
@@ -39059,7 +40136,7 @@ class UnpackSync extends Unpack {
     }
     tx.on("data", (chunk) => {
       try {
-        fs8.writeSync(fd, chunk, 0, chunk.length);
+        fs9.writeSync(fd, chunk, 0, chunk.length);
       } catch (er) {
         oner(er);
       }
@@ -39070,10 +40147,10 @@ class UnpackSync extends Unpack {
         const atime = entry.atime || new Date;
         const mtime = entry.mtime;
         try {
-          fs8.futimesSync(fd, atime, mtime);
+          fs9.futimesSync(fd, atime, mtime);
         } catch (futimeser) {
           try {
-            fs8.utimesSync(String(entry.absolute), atime, mtime);
+            fs9.utimesSync(String(entry.absolute), atime, mtime);
           } catch (utimeser) {
             er = futimeser;
           }
@@ -39083,10 +40160,10 @@ class UnpackSync extends Unpack {
         const uid = this[UID](entry);
         const gid = this[GID](entry);
         try {
-          fs8.fchownSync(fd, Number(uid), Number(gid));
+          fs9.fchownSync(fd, Number(uid), Number(gid));
         } catch (fchowner) {
           try {
-            fs8.chownSync(String(entry.absolute), Number(uid), Number(gid));
+            fs9.chownSync(String(entry.absolute), Number(uid), Number(gid));
           } catch (chowner) {
             er = er || fchowner;
           }
@@ -39105,12 +40182,12 @@ class UnpackSync extends Unpack {
     }
     if (entry.mtime && !this.noMtime) {
       try {
-        fs8.utimesSync(String(entry.absolute), entry.atime || new Date, entry.mtime);
+        fs9.utimesSync(String(entry.absolute), entry.atime || new Date, entry.mtime);
       } catch (er2) {}
     }
     if (this[DOCHOWN](entry)) {
       try {
-        fs8.chownSync(String(entry.absolute), Number(this[UID](entry)), Number(this[GID](entry)));
+        fs9.chownSync(String(entry.absolute), Number(this[UID](entry)), Number(this[GID](entry)));
       } catch (er2) {}
     }
     done();
@@ -39136,7 +40213,7 @@ class UnpackSync extends Unpack {
   [LINK](entry, linkpath, link, done) {
     const ls = `${link}Sync`;
     try {
-      fs8[ls](linkpath, String(entry.absolute));
+      fs9[ls](linkpath, String(entry.absolute));
       done();
       entry.resume();
     } catch (er) {
@@ -39149,7 +40226,7 @@ class UnpackSync extends Unpack {
 var extractFileSync = (opt) => {
   const u = new UnpackSync(opt);
   const file2 = opt.file;
-  const stat = fs9.statSync(file2);
+  const stat = fs10.statSync(file2);
   const readSize = opt.maxReadSize || 16 * 1024 * 1024;
   const stream = new ReadStreamSync(file2, {
     readSize,
@@ -39164,7 +40241,7 @@ var extractFile = (opt, _) => {
   const p = new Promise((resolve, reject) => {
     u.on("error", reject);
     u.on("close", resolve);
-    fs9.stat(file2, (er, stat) => {
+    fs10.stat(file2, (er, stat) => {
       if (er) {
         reject(er);
       } else {
@@ -39184,8 +40261,8 @@ var extract = makeCommand(extractFileSync, extractFile, (opt) => new UnpackSync(
     filesFilter(opt, files);
 });
 // ../node_modules/.bun/tar@7.5.2/node_modules/tar/dist/esm/replace.js
-import fs10 from "node:fs";
-import path7 from "node:path";
+import fs11 from "node:fs";
+import path8 from "node:path";
 var replaceSync = (opt, files) => {
   const p = new PackSync(opt);
   let threw = true;
@@ -39193,20 +40270,20 @@ var replaceSync = (opt, files) => {
   let position;
   try {
     try {
-      fd = fs10.openSync(opt.file, "r+");
+      fd = fs11.openSync(opt.file, "r+");
     } catch (er) {
       if (er?.code === "ENOENT") {
-        fd = fs10.openSync(opt.file, "w+");
+        fd = fs11.openSync(opt.file, "w+");
       } else {
         throw er;
       }
     }
-    const st = fs10.fstatSync(fd);
+    const st = fs11.fstatSync(fd);
     const headBuf = Buffer.alloc(512);
     POSITION:
       for (position = 0;position < st.size; position += 512) {
         for (let bufPos = 0, bytes = 0;bufPos < 512; bufPos += bytes) {
-          bytes = fs10.readSync(fd, headBuf, bufPos, headBuf.length - bufPos, position + bufPos);
+          bytes = fs11.readSync(fd, headBuf, bufPos, headBuf.length - bufPos, position + bufPos);
           if (position === 0 && headBuf[0] === 31 && headBuf[1] === 139) {
             throw new Error("cannot append to compressed archives");
           }
@@ -39232,7 +40309,7 @@ var replaceSync = (opt, files) => {
   } finally {
     if (threw) {
       try {
-        fs10.closeSync(fd);
+        fs11.closeSync(fd);
       } catch (er) {}
     }
   }
@@ -39251,7 +40328,7 @@ var replaceAsync = (opt, files) => {
   const getPos = (fd, size, cb_) => {
     const cb = (er, pos2) => {
       if (er) {
-        fs10.close(fd, (_) => cb_(er));
+        fs11.close(fd, (_) => cb_(er));
       } else {
         cb_(null, pos2);
       }
@@ -39268,7 +40345,7 @@ var replaceAsync = (opt, files) => {
       }
       bufPos += bytes;
       if (bufPos < 512 && bytes) {
-        return fs10.read(fd, headBuf, bufPos, headBuf.length - bufPos, position + bufPos, onread);
+        return fs11.read(fd, headBuf, bufPos, headBuf.length - bufPos, position + bufPos, onread);
       }
       if (position === 0 && headBuf[0] === 31 && headBuf[1] === 139) {
         return cb(new Error("cannot append to compressed archives"));
@@ -39292,9 +40369,9 @@ var replaceAsync = (opt, files) => {
         opt.mtimeCache.set(String(h.path), h.mtime);
       }
       bufPos = 0;
-      fs10.read(fd, headBuf, 0, 512, position, onread);
+      fs11.read(fd, headBuf, 0, 512, position, onread);
     };
-    fs10.read(fd, headBuf, 0, 512, position, onread);
+    fs11.read(fd, headBuf, 0, 512, position, onread);
   };
   const promise2 = new Promise((resolve, reject) => {
     p.on("error", reject);
@@ -39302,14 +40379,14 @@ var replaceAsync = (opt, files) => {
     const onopen = (er, fd) => {
       if (er && er.code === "ENOENT" && flag === "r+") {
         flag = "w+";
-        return fs10.open(opt.file, flag, onopen);
+        return fs11.open(opt.file, flag, onopen);
       }
       if (er || !fd) {
         return reject(er);
       }
-      fs10.fstat(fd, (er2, st) => {
+      fs11.fstat(fd, (er2, st) => {
         if (er2) {
-          return fs10.close(fd, () => reject(er2));
+          return fs11.close(fd, () => reject(er2));
         }
         getPos(fd, st.size, (er3, position) => {
           if (er3) {
@@ -39326,7 +40403,7 @@ var replaceAsync = (opt, files) => {
         });
       });
     };
-    fs10.open(opt.file, flag, onopen);
+    fs11.open(opt.file, flag, onopen);
   });
   return promise2;
 };
@@ -39334,7 +40411,7 @@ var addFilesSync2 = (p, files) => {
   files.forEach((file2) => {
     if (file2.charAt(0) === "@") {
       list({
-        file: path7.resolve(p.cwd, file2.slice(1)),
+        file: path8.resolve(p.cwd, file2.slice(1)),
         sync: true,
         noResume: true,
         onReadEntry: (entry) => p.add(entry)
@@ -39350,7 +40427,7 @@ var addFilesAsync2 = async (p, files) => {
     const file2 = String(files[i]);
     if (file2.charAt(0) === "@") {
       await list({
-        file: path7.resolve(String(p.cwd), file2.slice(1)),
+        file: path8.resolve(String(p.cwd), file2.slice(1)),
         noResume: true,
         onReadEntry: (entry) => p.add(entry)
       });
@@ -39385,11 +40462,11 @@ var mtimeFilter = (opt) => {
   if (!opt.mtimeCache) {
     opt.mtimeCache = new Map;
   }
-  opt.filter = filter ? (path8, stat) => filter(path8, stat) && !((opt.mtimeCache?.get(path8) ?? stat.mtime ?? 0) > (stat.mtime ?? 0)) : (path8, stat) => !((opt.mtimeCache?.get(path8) ?? stat.mtime ?? 0) > (stat.mtime ?? 0));
+  opt.filter = filter ? (path9, stat) => filter(path9, stat) && !((opt.mtimeCache?.get(path9) ?? stat.mtime ?? 0) > (stat.mtime ?? 0)) : (path9, stat) => !((opt.mtimeCache?.get(path9) ?? stat.mtime ?? 0) > (stat.mtime ?? 0));
 };
 // src/index.ts
 import { stat as stat2 } from "fs/promises";
-import { resolve, basename as basename2, join as join2 } from "path";
+import { resolve, basename as basename2, join as join3 } from "path";
 
 // src/api-client.ts
 var core2 = __toESM(require_core(), 1);
@@ -39639,10 +40716,10 @@ function mergeDefs2(...defs) {
 function cloneDef2(schema) {
   return mergeDefs2(schema._zod.def);
 }
-function getElementAtPath2(obj, path8) {
-  if (!path8)
+function getElementAtPath2(obj, path9) {
+  if (!path9)
     return obj;
-  return path8.reduce((acc, key) => acc?.[key], obj);
+  return path9.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject2(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -40006,11 +41083,11 @@ function aborted2(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues2(path8, issues) {
+function prefixIssues2(path9, issues) {
   return issues.map((iss) => {
     var _a2;
     (_a2 = iss).path ?? (_a2.path = []);
-    iss.path.unshift(path8);
+    iss.path.unshift(path9);
     return iss;
   });
 }
@@ -42951,7 +44028,7 @@ class RCadeDeployClient {
 
 // src/bucket.ts
 var httpm = __toESM(require_lib2(), 1);
-import fs11 from "fs";
+import fs12 from "fs";
 import { stat } from "fs/promises";
 async function uploadFileStream(filePath, presignedUrl) {
   const client = new httpm.HttpClient("rcade-deploy-bucket-client", [], {
@@ -42959,7 +44036,7 @@ async function uploadFileStream(filePath, presignedUrl) {
     maxRetries: 3
   });
   const stats = await stat(filePath);
-  const fileStream = fs11.createReadStream(filePath);
+  const fileStream = fs12.createReadStream(filePath);
   const response = await client.sendStream("PUT", presignedUrl, fileStream, {
     "Content-Type": "application/octet-stream",
     "Content-Length": stats.size.toString()
@@ -42986,20 +44063,36 @@ async function run() {
     const idToken = await getIdToken();
     const manifestPath = core3.getInput("manifestPath", { required: true });
     core3.info(`Checking for manifest file at ${manifestPath}...`);
-    const rawManifest = fs12.readFileSync(manifestPath, "utf-8");
+    const rawManifest = fs13.readFileSync(manifestPath, "utf-8");
     const manifest = Manifest.parse(JSON.parse(rawManifest));
+    const artifactPath = core3.getInput("artifactPath", { required: true });
+    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+    core3.startGroup("\uD83D\uDD0C Detecting plugins");
+    const detector = new PluginDetector;
+    const detectedDeps = detector.generateDependencies(workspace);
+    if (detectedDeps.length > 0) {
+      core3.info(`Detected ${detectedDeps.length} plugin(s):`);
+      for (const dep of detectedDeps) {
+        core3.info(`  - ${dep.name}@${dep.version}`);
+      }
+      const existingDeps = manifest.dependencies ?? [];
+      const existingNames = new Set(existingDeps.map((d) => d.name));
+      const newDeps = detectedDeps.filter((d) => !existingNames.has(d.name));
+      manifest.dependencies = [...existingDeps, ...newDeps];
+    } else {
+      core3.info("No plugins detected");
+    }
+    core3.endGroup();
     core3.startGroup("\uD83D\uDCA1 Manifest");
     core3.info(`Found manifest for app ${manifest.name}`);
     core3.info(JSON.stringify(manifest, null, 2));
     core3.endGroup();
-    const artifactPath = core3.getInput("artifactPath", { required: true });
-    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const absoluteArtifactPath = resolve(workspace, artifactPath);
-    if (!fs12.existsSync(`${absoluteArtifactPath}/index.html`)) {
+    if (!fs13.existsSync(`${absoluteArtifactPath}/index.html`)) {
       throw new Error(`Artifact folder ${artifactPath} does not contain an index.html file`);
     }
     const outputFile = `${basename2(artifactPath)}.tar.gz`;
-    const outputPath = join2(workspace, outputFile);
+    const outputPath = join3(workspace, outputFile);
     core3.startGroup("\uD83D\uDCE6 Creating tar.gz archive");
     core3.info(`Source: ${absoluteArtifactPath}`);
     core3.info(`Output: ${outputPath}`);

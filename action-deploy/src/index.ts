@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import { GameManifest } from "@rcade/api";
+import { GameManifest, PluginDetector } from "@rcade/api";
 import * as fs from "fs";
 import * as tar from "tar";
 import { stat } from "fs/promises";
@@ -29,13 +29,31 @@ export async function run(): Promise<void> {
     const rawManifest = fs.readFileSync(manifestPath, "utf-8");
     const manifest = GameManifest.parse(JSON.parse(rawManifest));
 
+    const artifactPath = core.getInput("artifactPath", { required: true });
+    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
+
+    core.startGroup("🔌 Detecting plugins");
+    const detector = new PluginDetector();
+    const detectedDeps = detector.generateDependencies(workspace);
+    if (detectedDeps.length > 0) {
+      core.info(`Detected ${detectedDeps.length} plugin(s):`);
+      for (const dep of detectedDeps) {
+        core.info(`  - ${dep.name}@${dep.version}`);
+      }
+      // Merge detected dependencies with existing ones
+      const existingDeps = manifest.dependencies ?? [];
+      const existingNames = new Set(existingDeps.map(d => d.name));
+      const newDeps = detectedDeps.filter(d => !existingNames.has(d.name));
+      manifest.dependencies = [...existingDeps, ...newDeps];
+    } else {
+      core.info("No plugins detected");
+    }
+    core.endGroup();
+
     core.startGroup("💡 Manifest");
     core.info(`Found manifest for app ${manifest.name}`);
     core.info(JSON.stringify(manifest, null, 2));
     core.endGroup();
-
-    const artifactPath = core.getInput("artifactPath", { required: true });
-    const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
     const absoluteArtifactPath = resolve(workspace, artifactPath);
 
     // ensure artfact folder has an index.html
