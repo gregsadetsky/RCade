@@ -5,7 +5,7 @@ import { promisify } from 'util';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { readdir } from "fs/promises";
-import { select } from "@inquirer/prompts";
+import { select, input } from "@inquirer/prompts";
 
 const execAsync = promisify(exec);
 
@@ -118,6 +118,71 @@ async function selectGame(): Promise<string> {
     return selectedGame;
 }
 
+async function promptForNewGameId(originalName: string): Promise<string> {
+    const gameId = await input({
+        message: 'Enter a unique ID for your remixed game:',
+        default: `${originalName}-remix`,
+        validate: (value) => {
+            if (!value.trim()) {
+                return 'Game ID is required';
+            }
+            if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+                return 'Game ID can only contain letters, numbers, underscores, and hyphens';
+            }
+            return true;
+        },
+    });
+    return gameId;
+}
+
+async function promptForNewDisplayName(originalName: string): Promise<string> {
+    const displayName = await input({
+        message: 'Enter a display name for your remixed game:',
+        default: `${originalName} (Remix)`,
+        validate: (value) => {
+            if (!value.trim()) {
+                return 'Display name is required';
+            }
+            return true;
+        },
+    });
+    return displayName;
+}
+
+interface AuthorInfo {
+    display_name: string;
+    recurse_id?: number;
+}
+
+async function promptForAuthor(): Promise<AuthorInfo> {
+    const displayName = await input({
+        message: 'Enter your name (as the author):',
+        validate: (value) => {
+            if (!value.trim()) {
+                return 'Author name is required';
+            }
+            return true;
+        },
+    });
+
+    const recurseIdStr = await input({
+        message: 'Enter your Recurse Center ID (optional, press Enter to skip):',
+        validate: (value) => {
+            if (value.trim() && isNaN(parseInt(value, 10))) {
+                return 'Recurse ID must be a number';
+            }
+            return true;
+        },
+    });
+
+    const author: AuthorInfo = { display_name: displayName };
+    if (recurseIdStr.trim()) {
+        author.recurse_id = parseInt(recurseIdStr, 10);
+    }
+
+    return author;
+}
+
 function parseBranches(branches: GitHubBranch[]): ParsedBranch[] {
     return branches
         .map(branch => {
@@ -156,6 +221,7 @@ function stripVersion(branchName: string): string {
 
 function generateCloneCommands(
     packageName: string,
+    outputDir: string,
     targetVersion: string,
     parsedBranches: ParsedBranch[],
     defaultBranch: string
@@ -171,8 +237,8 @@ function generateCloneCommands(
     const checkoutBranch = matchingBranches.find(b => b.branchName === defaultBranchName);
 
     const commands = [
-        `git clone --no-checkout ${repoUrl} ${packageName}`,
-        `cd ${packageName}`,
+        `git clone --no-checkout ${repoUrl} ${outputDir}`,
+        `cd ${outputDir}`,
         ...matchingBranches.map(b => `git fetch origin ${b.fullName}:${b.branchName}`),
         `git remote remove origin`,
         CLEANUP_MARKER,
@@ -185,7 +251,7 @@ function generateCloneCommands(
     return commands;
 }
 
-async function getCloneCommand(packageName: string, version?: string) {
+async function getCloneCommand(packageName: string, outputDir: string, version?: string) {
     const [repoInfo, branches] = await Promise.all([
         fetchRepoInfo(packageName),
         fetchBranches(packageName)
@@ -202,7 +268,7 @@ async function getCloneCommand(packageName: string, version?: string) {
         .filter(b => b.version === targetVersion)
         .map(b => b.branchName);
 
-    const commands = generateCloneCommands(packageName, targetVersion, parsedBranches, repoInfo.default_branch);
+    const commands = generateCloneCommands(packageName, outputDir, targetVersion, parsedBranches, repoInfo.default_branch);
 
     return { commands, version: targetVersion, branches: matchingBranches };
 }
@@ -241,7 +307,15 @@ async function cleanupRemoteRefs(cwd: string, stepNum: number, totalSteps: numbe
     console.log(c.success('  ✓ Complete\n'));
 }
 
-async function updateManifests(cwd: string, packageName: string, version: string): Promise<void> {
+interface RemixInfo {
+    originalName: string;
+    originalVersion: string;
+    newGameId: string;
+    newDisplayName: string;
+    author: AuthorInfo;
+}
+
+async function updateManifests(cwd: string, remixInfo: RemixInfo): Promise<void> {
     console.log(c.info('📝 Updating manifests...'));
 
     try {
@@ -262,7 +336,11 @@ async function updateManifests(cwd: string, packageName: string, version: string
                 const content = await readFile(fullPath, 'utf-8');
                 const manifest = JSON.parse(content);
 
-                manifest.remix_of = { name: packageName, version };
+                manifest.name = remixInfo.newGameId;
+                manifest.display_name = remixInfo.newDisplayName;
+                delete manifest.version;
+                manifest.authors = [remixInfo.author];
+                manifest.remix_of = { name: remixInfo.originalName, version: remixInfo.originalVersion };
 
                 await writeFile(fullPath, JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
                 console.log(c.dim('      ✓ Updated\n'));
@@ -306,7 +384,13 @@ async function remix(packageName: string, version?: string) {
     try {
         console.log(`\n${c.bright('🎮 Remixing RCade game:')} ${c.magenta(packageName)}\n`);
 
-        const result = await getCloneCommand(packageName, version);
+        const newGameId = await promptForNewGameId(packageName);
+        const newDisplayName = await promptForNewDisplayName(packageName);
+        const author = await promptForAuthor();
+
+        console.log('');
+
+        const result = await getCloneCommand(packageName, newGameId, version);
 
         console.log(`${c.info('📦 Version:')} ${c.bright(result.version)}`);
         console.log(`${c.info('🌿 Branches:')} ${result.branches.map(b => c.bright(b)).join(', ')}\n`);
@@ -332,10 +416,16 @@ async function remix(packageName: string, version?: string) {
             }
         }
 
-        await updateManifests(cwd, packageName, result.version);
+        await updateManifests(cwd, {
+            originalName: packageName,
+            originalVersion: result.version,
+            newGameId,
+            newDisplayName,
+            author,
+        });
 
-        console.log(c.success(`✅ Successfully remixed ${packageName}!`));
-        console.log(`${c.info('📁 Your game is ready in:')} ${c.bright(`./${packageName}`)}\n`);
+        console.log(c.success(`✅ Successfully remixed ${packageName} as ${newGameId}!`));
+        console.log(`${c.info('📁 Your game is ready in:')} ${c.bright(`./${newGameId}`)}\n`);
     } catch (error) {
         console.error(`\n${c.error('❌ Error:')} ${error instanceof Error ? error.message : error}`);
         process.exit(1);
