@@ -151,6 +151,54 @@ The plugin is automatically included in your `rcade.manifest.json`:
 
 ---
 
+## The Sandbox: What Your Game Can (and Can't) Do
+
+RCade games run in a **constrained sandbox environment**. This keeps the arcade cabinet secure while running community-created games. Here's what you need to know:
+
+### What's Blocked
+
+| Capability | Status | Alternative |
+|------------|--------|-------------|
+| **Network requests** | Blocked | Games cannot fetch external URLs |
+| **Local storage** | Blocked | No `localStorage`, `sessionStorage`, `indexedDB`, or cookies |
+| **Direct input events** | Blocked | Use `@rcade/plugin-input-classic` instead |
+| **Node.js APIs** | Blocked | Games run in browser context only |
+| **File system access** | Blocked | Bundle all assets with your game |
+
+**Coming soon:** We're planning to add plugins for persistence (save high scores!) and networking (multiplayer!). Want to help build them? Reach out to the RCade maintainers.
+
+### Why Plugins?
+
+Since direct browser APIs for input are blocked, **all system interactions happen through plugins**. Plugins provide a safe, structured way for games to access hardware and system features.
+
+```javascript
+// This WON'T work - direct input is blocked
+document.addEventListener('keydown', handleKey);  // Throws SecurityError
+
+// This WILL work - use the plugin
+import { PLAYER_1 } from "@rcade/plugin-input-classic";
+if (PLAYER_1.A) fire();
+```
+
+Plugins communicate with your game through message channels, ensuring games can only access explicitly granted capabilities.
+
+### What Works Fine
+
+- **Canvas rendering** - Draw anything you want
+- **Audio** - Play sounds and music
+- **Web Workers** - For background processing
+- **requestAnimationFrame** - For smooth game loops
+- **All your bundled assets** - Images, fonts, JSON data
+
+### Designing for the Sandbox
+
+1. **Bundle everything** - Include all assets in your build. No external CDNs.
+2. **No persistence** - Games start fresh every time. Design for it.
+3. **Use plugins for input** - The `@rcade/plugin-input-classic` plugin handles all arcade controls.
+4. **Keep it self-contained** - Your game should work completely offline.
+
+---
+
 ## The Manifest File
 
 Every RCade game has an `rcade.manifest.json` that describes your game:
