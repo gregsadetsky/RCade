@@ -27,4 +27,8 @@ export class GameVersion {
     public dependencies(): { name: string, version: string }[] {
         return this.apiResponse.dependencies;
     }
+
+    public authors(): { display_name: string, recurse_id?: number | null }[] {
+        return this.apiResponse.authors;
+    }
 }

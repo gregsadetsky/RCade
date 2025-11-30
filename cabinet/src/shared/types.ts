@@ -26,6 +26,9 @@ export interface GameInfo {
   id: string | undefined;
   name: string;
   latestVersion: string | undefined;
+  authors: {
+    display_name: string,
+  }[];
   dependencies: {
     name: string,
     version: string,

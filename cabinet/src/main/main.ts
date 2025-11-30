@@ -306,6 +306,7 @@ app.whenReady().then(async () => {
       name: game.name(),
       latestVersion: game.latest().version(),
       contentUrl: game.latest().contentUrl(),
+      authors: game.latest().authors().map(a => ({ display_name: a.display_name })),
       dependencies: game.latest().dependencies(),
     }));
   });

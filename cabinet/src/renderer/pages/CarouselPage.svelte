@@ -77,6 +77,9 @@
     <div class="game-card">
       <h1 class="game-name">{currentGame.name}</h1>
       <p class="game-version">v{currentGame.latestVersion}</p>
+      {#if currentGame.authors.length > 0}
+        <p class="game-authors">by {currentGame.authors.map(a => a.display_name).join(', ')}</p>
+      {/if}
     </div>
     <div class="pagination">
       {#each games as _, i}
@@ -123,6 +126,13 @@
     font-size: clamp(12px, 5vw, 18px);
     color: #888;
     font-weight: 400;
+  }
+
+  .game-authors {
+    font-size: clamp(12px, 4vw, 16px);
+    color: #666;
+    font-weight: 400;
+    margin-top: 4px;
   }
 
   .pagination {

@@ -11,7 +11,10 @@ let currentRoute = $state<Route>(initialManifest == null ? { page: 'carousel' } 
     id: undefined,
     name: initialManifest.name,
     latestVersion: initialManifest.version ?? undefined,
-    dependencies: initialManifest.dependencies,
+    authors: Array.isArray(initialManifest.authors)
+      ? initialManifest.authors.map(a => ({ display_name: a.display_name }))
+      : [{ display_name: initialManifest.authors.display_name }],
+    dependencies: initialManifest.dependencies ?? [],
   }
 });
 
