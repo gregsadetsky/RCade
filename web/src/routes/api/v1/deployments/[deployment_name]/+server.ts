@@ -11,23 +11,6 @@ import * as jose from 'jose';
 
 const VALIDATOR = new GithubOIDCValidator();
 
-async function isRepoPublic(repo: string): Promise<boolean> {
-    const response = await fetch(`https://api.github.com/repos/${repo}`, {
-        headers: {
-            'Accept': 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'User-Agent': 'RCade'
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch ${repo} to validate publicity`);
-    }
-
-    const data = await response.json();
-    return data.private === false;
-}
-
 async function triggerCommunityClone(sourceRepo: string, deploymentName: string, version: string) {
     const response = await fetch('https://api.github.com/repos/fcjr/rcade/actions/workflows/clone-to-community.yaml/dispatches', {
         method: 'POST',
@@ -95,7 +78,7 @@ export const POST: RequestHandler = async ({ params, request, platform }) => {
         throw error;
     }
 
-    if (!await isRepoPublic(auth.repository)) {
+    if (auth.repository_visibility !== "public") {
         return jsonResponse({
             error: 'Only public repositories can be deployed to RCade. Please make your repository public and try again.'
         }, 403);
