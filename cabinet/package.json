@@ -40,7 +40,6 @@
     "vite": "^6.0.0"
   },
   "build": {
-    "$comment": "npmRebuild disabled to allow use of node-hid precompiled versions, node-gyp was failing in CI",
     "npmRebuild": false,
     "appId": "com.frankchiarulli.rcade.client",
     "productName": "rcade",
