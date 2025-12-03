@@ -10,19 +10,29 @@ npm install @rcade/plugin-input-spinners
 
 ## Usage
 
+Two patterns are available. Pick one, don't mix them.
+
+### Polling (recommended)
+
 ```javascript
-import { PLAYER_1, PLAYER_2, on } from "@rcade/plugin-input-spinners";
+import { PLAYER_1, PLAYER_2 } from "@rcade/plugin-input-spinners";
 
 function gameLoop() {
-  // Polling-based: check spinner position
-  const paddleX = PLAYER_1.SPINNER.position % screenWidth;
+  // Returns accumulated movement since last read, then resets to 0
+  const delta = PLAYER_1.SPINNER.delta;
+  paddleX += delta * speed;
 
   requestAnimationFrame(gameLoop);
 }
+```
 
-// Event-based: respond to spin events
-on("spin", ({ player, delta, position }) => {
-  console.log(`Player ${player} spun ${delta}, now at ${position}`);
+### Events
+
+```javascript
+import { on } from "@rcade/plugin-input-spinners";
+
+on("spin", ({ player, delta }) => {
+  console.log(`Player ${player} spun ${delta}`);
 });
 ```
 
@@ -32,12 +42,11 @@ on("spin", ({ player, delta, position }) => {
 
 ```typescript
 {
-  SPINNER: { delta: number, position: number }
+  SPINNER: { delta: number }
 }
 ```
 
-- `delta`: The change since the last update
-- `position`: Cumulative position (can be negative)
+- `delta`: Accumulated movement since last read. Reading resets it to 0.
 
 ### STATUS
 
@@ -55,7 +64,7 @@ Subscribe to spin events.
 
 ```typescript
 const unsubscribe = on("spin", (data) => {
-  // data: { player: 1 | 2, delta: number, position: number }
+  // data: { player: 1 | 2, delta: number }
 });
 
 // Later: unsubscribe()
