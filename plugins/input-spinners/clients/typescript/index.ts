@@ -51,7 +51,7 @@ export const STATUS = { connected: false };
     const channel = await PluginChannel.acquire("@rcade/input-spinners", "^1.0.0");
 
     // Use addEventListener (not onmessage) to not interfere with PluginChannel's request handling
-    channel.getPort().addEventListener("message", (event) => {
+    channel.getPort().addEventListener("message", (event: MessageEvent) => {
         const { type, spinner1_step_delta, spinner2_step_delta } = event.data;
         if (type === "spinners") {
             if (spinner1_step_delta !== 0) spinner1._update(spinner1_step_delta);
