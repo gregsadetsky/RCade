@@ -47,7 +47,7 @@ if (process.platform === 'linux') {
   if (!isDev) {
     app.commandLine.appendSwitch('use-angle', 'vulkan');
     app.commandLine.appendSwitch('use-gl', 'angle');
-    app.commandLine.appendSwitch('enable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WaylandWindowDecorations');
+    app.commandLine.appendSwitch('enable-features', 'Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,WaylandWindowDecorations,SharedArrayBuffer');
     app.commandLine.appendSwitch('enable-unsafe-webgpu');
 
     app.commandLine.appendSwitch('cursor', 'none');
